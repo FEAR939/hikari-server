@@ -2,6 +2,8 @@ import bun from "bun";
 import { SQL } from "bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import registerRoutes from "./routes";
+import registerAuthRoutes from "./auth";
 
 const SERVER_PORT = process.env.SERVER_PORT;
 const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH;
@@ -33,6 +35,9 @@ async function main() {
   });
 
   const conn = await db.connect();
+
+  registerRoutes(app, conn);
+  registerAuthRoutes(app, conn);
 
   bun.serve({
     port: 5000,
