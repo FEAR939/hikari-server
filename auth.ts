@@ -156,39 +156,49 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     }
   });
 
-  app.post("/auth/reset-password", async (c) => {
-    try {
-      const body = await c.req.parseBody();
-      const code = String(body.code || "");
-      const newPassword = String(body.password || "");
+  app.post("/auth/verify-reset-code", async (c) => {
+    const body = await c.req.parseBody();
+    const code = String(body.code || "");
 
-      if (!code || !newPassword) {
-        return c.json({ error: "Missing code or password" }, 400);
-      }
-
-      const record = resetCodes.get(code);
-
-      if (!record || record.expires < Date.now()) {
-        return c.json({ error: "Invalid or expired code" }, 400);
-      }
-
-      if (newPassword.length < 8) {
-        return c.json({ error: "Password too short" }, 400);
-      }
-
-      const hashedPassword = await hash(newPassword, 10);
-
-      await conn`
-        UPDATE users SET password_hashed = ${hashedPassword} WHERE id = ${record.userId};
-      `;
-
-      resetCodes.delete(code);
-
-      return c.json({ message: "Password reset successful" });
-    } catch (err) {
-      console.error(err);
-      return c.json({ error: "Failed to reset password" }, 500);
+    const record = resetCodes.get(code);
+    if (!record || record.expires < Date.now()) {
+      return c.json({ error: "Invalid or expired code" }, 400);
     }
+
+    resetCodes.delete(code);
+
+    const resetToken = jwt.sign(
+      { id: record.userId, email: record.email },
+      JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    return c.json({ resetToken });
+  });
+
+  app.post("/auth/reset-password", async (c) => {
+    const body = await c.req.parseBody();
+    const token = String(body.token || "");
+    const newPassword = String(body.password || "");
+
+    if (!token || !newPassword) return c.json({ error: "Missing token or password" }, 400);
+
+    let payload: { id: number; email: string };
+    try {
+      payload = jwt.verify(token, JWT_SECRET) as { id: number; email: string };
+    } catch (err) {
+      return c.json({ error: "Invalid or expired token" }, 401);
+    }
+
+    if (newPassword.length < 8) {
+      return c.json({ error: "Password too short" }, 400);
+    }
+
+    const hashedPassword = await hash(newPassword, 10);
+
+    await conn`UPDATE users SET password_hashed = ${hashedPassword} WHERE id = ${payload.id}`;
+
+    return c.json({ message: "Password reset successful" });
   });
 
 }
