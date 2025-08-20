@@ -139,9 +139,10 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       const user = users[0];
       const tokenCreated = new Date(user.refresh_token_created);
       const now = new Date();
-      const tokenAgeMinutes = (now - tokenCreated) / 1000 / 60; // minutes
+	  const timezoneoffset = tokenCreated.getTimezoneOffset();
+      tokenCreated.setMilliseconds(tokenCreated.getMilliseconds() + timezoneoffset * 60 * 1000);
+      const tokenAgeMinutes = (now.getTime() - tokenCreated.getTime()) / 1000 / 60; // minutes
       const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
-
       if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
         return c.json({ error: "Refresh token expired" }, 401);
       }
@@ -280,9 +281,10 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       const user = users[0];
       const tokenCreated = new Date(user.refresh_token_created);
       const now = new Date();
-      const tokenAgeMinutes = (now - tokenCreated) / 1000 / 60; // minutes
+	  const timezoneoffset = tokenCreated.getTimezoneOffset();
+      tokenCreated.setMilliseconds(tokenCreated.getMilliseconds() + timezoneoffset * 60 * 1000);
+      const tokenAgeMinutes = (now.getTime() - tokenCreated.getTime()) / 1000 / 60; // minutes
       const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
-
       if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
         return c.json({ error: "Refresh token expired" }, 401);
       }
