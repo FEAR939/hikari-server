@@ -7,6 +7,8 @@ import { Resend } from "resend";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const resetCodes = new Map<string, { userId: number; email: string; expires: number }>();
+
 export default function registerAuthRoutes(app: Hono, conn: SQL) {
   app.post("/auth/register", async (c) => {
     try {
@@ -100,7 +102,7 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     }
   });
 
-  app.post("/auth/password-reset-link", async (c) => {
+  app.post("/auth/password-reset-code", async (c) => {
     try {
       const body = await c.req.parseBody();
       const email = String(body.email || "");
@@ -112,62 +114,81 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       const users = await conn`
         SELECT id, username, email FROM users WHERE email = ${email};
       `;
+
       if (users.length === 0) {
-        return c.json({ error: "If this email is registered, a password reset link has been sent." });
+        return c.json({ message: "If this email is registered, a code has been sent." });
       }
 
       const user = users[0];
 
-      const resetToken = jwt.sign(
-        { id: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+	  function generateResetCode(length = 8) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let code = "";
+        for (let i = 0; i < length; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      }
 
-      const resetLink = `https://localhost:5000/reset-password?token=${resetToken}`; // TODO
+      const code = generateResetCode();
+
+	  for (const [oldCode, record] of resetCodes.entries()) {
+        if (record.userId === user.id && record.expires > Date.now()) {
+          resetCodes.delete(oldCode);
+        }
+      }
+
+      resetCodes.set(code, { userId: user.id, email: user.email, expires: Date.now() + 15 * 60 * 1000 });
 
       await resend.emails.send({
-        from: "onboarding@resend.dev", // TODO
+        from: "onboarding@resend.dev", // TODO: change domain
         to: user.email,
-        subject: "Password Reset Request",
+        subject: "Password Reset Code",
         html: `<p>Hello ${user.username},</p>
-               <p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+               <p>Your password reset code is: <b>${code}</b></p>
+               <p>This code will expire in 15 minutes.</p>`,
       });
 
-      return c.json({ message: "If this email is registered, a password reset link has been sent." });
+      return c.json({ message: "If this email is registered, a code has been sent." });
     } catch (err) {
       console.error(err);
-      return c.json({ error: "Failed to send password reset email" }, 500);
+      return c.json({ error: "Failed to send reset code" }, 500);
     }
   });
 
-  app.get("/auth/reset-password", async (c) => { // TODO
+  app.post("/auth/reset-password", async (c) => {
     try {
       const body = await c.req.parseBody();
-      const token = String(body.token || "");
+      const code = String(body.code || "");
       const newPassword = String(body.password || "");
 
-      if (!token || !newPassword) {
-        return c.json({ error: "Missing token or password" }, 400);
+      if (!code || !newPassword) {
+        return c.json({ error: "Missing code or password" }, 400);
       }
 
-      let payload: { id: number; email: string };
-      try {
-        payload = jwt.verify(token, JWT_SECRET) as { id: number; email: string };
-      } catch (err) {
-        return c.json({ error: "Invalid or expired token" }, 401);
+      const record = resetCodes.get(code);
+
+      if (!record || record.expires < Date.now()) {
+        return c.json({ error: "Invalid or expired code" }, 400);
       }
 
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      if (newPassword.length < 8) {
+        return c.json({ error: "Password too short" }, 400);
+      }
+
+      const hashedPassword = await hash(newPassword, 10);
 
       await conn`
-        UPDATE users SET password_hashed = ${hashedPassword} WHERE id = ${payload.id};
+        UPDATE users SET password_hashed = ${hashedPassword} WHERE id = ${record.userId};
       `;
+
+      resetCodes.delete(code);
 
       return c.json({ message: "Password reset successful" });
     } catch (err) {
       console.error(err);
       return c.json({ error: "Failed to reset password" }, 500);
     }
-});
+  });
+
 }
