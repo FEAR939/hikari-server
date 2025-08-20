@@ -7,17 +7,20 @@ import { Resend } from "resend";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const resetCodes = new Map<string, { userId: number; email: string; expires: number }>();
+const resetCodes = new Map<
+  string,
+  { userId: number; email: string; expires: number }
+>();
 
 export default function registerAuthRoutes(app: Hono, conn: SQL) {
   app.post("/auth/register", async (c) => {
     try {
-	  const body = await c.req.parseBody();
-	  const username = String(body.username || "");
-	  const password = String(body.password || "");
-	  const email = String(body.email || "");
+      const body = await c.req.parseBody();
+      const username = String(body.username || "");
+      const password = String(body.password || "");
+      const email = String(body.email || "");
 
-	  function validateEmail(email: string): boolean {
+      function validateEmail(email: string): boolean {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return regex.test(email);
       }
@@ -26,17 +29,17 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
         return c.json({ error: "Missing fields" }, 400);
       }
 
-	  if (!validateEmail(email)) {
+      if (!validateEmail(email)) {
         return c.json({ error: "Invalid email" }, 400);
-	  }
+      }
 
-	  if (password.length < 8) {
-		return c.json({ error: "Password too short" }, 400);
-	  }
+      if (password.length < 8) {
+        return c.json({ error: "Password too short" }, 400);
+      }
 
-	  if (username.length < 4) {
-		return c.json({ error: "Username too short" }, 400);
-	  }
+      if (username.length < 4) {
+        return c.json({ error: "Username too short" }, 400);
+      }
 
       const existing = await conn`
         SELECT id FROM users WHERE username = ${username} OR email = ${email};
@@ -63,9 +66,9 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
 
   app.post("/auth/login", async (c) => {
     try {
-	  const body = await c.req.parseBody();
-	  const password = String(body.password || "");
-	  const email = String(body.email || "");
+      const body = await c.req.parseBody();
+      const password = String(body.password || "");
+      const email = String(body.email || "");
 
       if (!email || !password) {
         return c.json({ error: "Missing fields" }, 400);
@@ -92,10 +95,13 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       const token = jwt.sign(
         { id: user.id, username: user.username, email: user.email },
         JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1h" },
       );
 
-      return c.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+      return c.json({
+        token,
+        user: { id: user.id, username: user.username, email: user.email },
+      });
     } catch (err) {
       console.error(err);
       return c.json({ error: "Failed to login" }, 500);
@@ -116,13 +122,16 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       `;
 
       if (users.length === 0) {
-        return c.json({ message: "If this email is registered, a code has been sent." });
+        return c.json({
+          message: "If this email is registered, a code has been sent.",
+        });
       }
 
       const user = users[0];
 
-	  function generateResetCode(length = 8) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      function generateResetCode(length = 6) {
+        const chars =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         let code = "";
         for (let i = 0; i < length; i++) {
           code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -132,13 +141,17 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
 
       const code = generateResetCode();
 
-	  for (const [oldCode, record] of resetCodes.entries()) {
+      for (const [oldCode, record] of resetCodes.entries()) {
         if (record.userId === user.id && record.expires > Date.now()) {
           resetCodes.delete(oldCode);
         }
       }
 
-      resetCodes.set(code, { userId: user.id, email: user.email, expires: Date.now() + 15 * 60 * 1000 });
+      resetCodes.set(code, {
+        userId: user.id,
+        email: user.email,
+        expires: Date.now() + 15 * 60 * 1000,
+      });
 
       await resend.emails.send({
         from: "onboarding@resend.dev", // TODO: change domain
@@ -149,7 +162,9 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
                <p>This code will expire in 15 minutes.</p>`,
       });
 
-      return c.json({ message: "If this email is registered, a code has been sent." });
+      return c.json({
+        message: "If this email is registered, a code has been sent.",
+      });
     } catch (err) {
       console.error(err);
       return c.json({ error: "Failed to send reset code" }, 500);
@@ -170,7 +185,7 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     const resetToken = jwt.sign(
       { id: record.userId, email: record.email },
       JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "15m" },
     );
 
     return c.json({ resetToken });
@@ -181,7 +196,8 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     const token = String(body.token || "");
     const newPassword = String(body.password || "");
 
-    if (!token || !newPassword) return c.json({ error: "Missing token or password" }, 400);
+    if (!token || !newPassword)
+      return c.json({ error: "Missing token or password" }, 400);
 
     let payload: { id: number; email: string };
     try {
@@ -200,5 +216,4 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
 
     return c.json({ message: "Password reset successful" });
   });
-
 }
