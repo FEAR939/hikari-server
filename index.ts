@@ -2,6 +2,7 @@ import bun from "bun";
 import { SQL } from "bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 import registerRoutes from "./routes";
 import registerAuthRoutes from "./auth";
 
@@ -17,6 +18,7 @@ const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE;
 
 const app = new Hono();
 app.use("*", cors({ origin: "*" }));
+app.use("*", logger());
 
 async function main() {
   const db = new SQL({
