@@ -9,6 +9,15 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const resetCodes = new Map<string, { userId: number; email: string; expires: number }>();
 
+function generateCode(length: number) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let code = "";
+  for (let i = 0; i < length; i++) {
+	code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 export default function registerAuthRoutes(app: Hono, conn: SQL) {
   app.post("/auth/register", async (c) => {
     try {
@@ -89,16 +98,64 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
         UPDATE users SET last_login = now() WHERE id = ${user.id};
       `;
 
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         { id: user.id, username: user.username, email: user.email },
         JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1d" }
       );
 
-      return c.json({ token, user: { id: user.id, username: user.username, email: user.email } });
+	  const refreshToken = generateCode(36);
+
+	  await conn`
+        UPDATE users SET refresh_token = ${refreshToken}, refresh_token_created = NOW() WHERE id = ${user.id};
+      `;
+
+      return c.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email } });
     } catch (err) {
       console.error(err);
       return c.json({ error: "Failed to login" }, 500);
+    }
+  });
+
+  app.post("/auth/authenticate", async (c) => {
+    const body = await c.req.parseBody();
+    const refreshToken = String(body.refreshToken || "");
+
+    if (!refreshToken) {
+      return c.json({ error: "Missing refresh token" }, 400);
+    }
+
+    try {
+      const users = await conn`
+        SELECT id, username, email, refresh_token, refresh_token_created
+        FROM users
+        WHERE refresh_token = ${refreshToken}
+      `;
+
+      if (users.length === 0 || users[0].refresh_token !== refreshToken) {
+        return c.json({ error: "Invalid refresh token" }, 401);
+      }
+
+      const user = users[0];
+      const tokenCreated = new Date(user.refresh_token_created);
+      const now = new Date();
+      const tokenAgeMinutes = (now - tokenCreated) / 1000 / 60; // minutes
+      const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
+
+      if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
+        return c.json({ error: "Refresh token expired" }, 401);
+      }
+
+      const accessToken = jwt.sign(
+        { id: user.id, username: user.username, email: user.email },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      return c.json({ accessToken });
+    } catch (err) {
+      console.error(err);
+      return c.json({ error: "Server error" }, 500);
     }
   });
 
@@ -121,16 +178,7 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
 
       const user = users[0];
 
-	  function generateResetCode(length = 8) {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        let code = "";
-        for (let i = 0; i < length; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-      }
-
-      const code = generateResetCode();
+      const code = generateCode(6);
 
 	  for (const [oldCode, record] of resetCodes.entries()) {
         if (record.userId === user.id && record.expires > Date.now()) {
@@ -201,4 +249,53 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     return c.json({ message: "Password reset successful" });
   });
 
+  app.post("/auth/refresh", async (c) => {
+    const body = await c.req.parseBody();
+    const oldRefreshToken = String(body.refreshToken || "");
+
+    if (!oldRefreshToken) {
+      return c.json({ error: "Missing refresh token" }, 400);
+    }
+
+    try {
+      const users = await conn`
+        SELECT id, username, email, refresh_token, refresh_token_created
+        FROM users
+        WHERE refresh_token = ${oldRefreshToken}
+      `;
+
+      if (users.length === 0 || users[0].refresh_token !== oldRefreshToken) {
+        return c.json({ error: "Invalid refresh token" }, 401);
+      }
+
+      const user = users[0];
+      const tokenCreated = new Date(user.refresh_token_created);
+      const now = new Date();
+      const tokenAgeMinutes = (now - tokenCreated) / 1000 / 60; // minutes
+      const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
+
+      if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
+        return c.json({ error: "Refresh token expired" }, 401);
+      }
+
+      const accessToken = jwt.sign(
+        { id: user.id, username: user.username, email: user.email },
+        JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      const newRefreshToken = generateCode(36);
+
+      await conn`
+        UPDATE users
+        SET refresh_token = ${newRefreshToken}, refresh_token_created = NOW()
+        WHERE id = ${user.id}
+      `;
+
+      return c.json({ accessToken, refreshToken: newRefreshToken });
+    } catch (err) {
+      console.error(err);
+      return c.json({ error: "Server error" }, 500);
+    }
+  });
 }
