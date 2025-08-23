@@ -8,6 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const resetCodes = new Map<string, { userId: number; email: string; expires: number }>();
+const verifyCode = new Map<string, { userId: number; email: string; expires: number }>();
 
 function generateCode(length: number) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -70,6 +71,80 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     }
   });
 
+  app.post("/auth/send-email-verify", async (c) => {
+	const body = await c.req.parseBody();
+    const email = String(body.email || "");
+
+    if (!email) {
+     return c.json({ error: "Email is required" }, 400);
+    }
+
+    const users = await conn`
+    SELECT id, username, email, email_verified FROM users WHERE email = ${email};
+    `;
+
+    if (users.length === 0) {
+      return c.json({
+        message: "If this email is registered or unverified, a code has been sent.",
+      });
+    }
+
+    const user = users[0];
+
+	if (user.email_verified === true) {
+      return c.json({
+        message: "If this email is registered or unverified, a code has been sent.",
+      });
+    }
+
+    const code = generateCode(6);
+
+    for (const [oldCode, record] of verifyCode.entries()) {
+      if (record.userId === user && record.expires > Date.now()) {
+          verifyCode.delete(oldCode);
+      }
+    }
+
+    verifyCode.set(code, {
+        userId: user,
+        email: email,
+        expires: Date.now() + 15 * 60 * 1000,
+    });
+
+    await resend.emails.send({
+      from: "onboarding@resend.dev", // TODO: change domain
+      to: email,
+      subject: "Password Reset Code",
+      html: `<p>Hello,</p>
+            <p>Your email verification code iss <b>${code}</b></p>
+			<p>This code will expire in 15 minutes.</p>`,
+	});
+
+    return c.json({
+      message: "If this email is registered or unverified, a code has been sent.",
+    });
+  });
+
+   app.post("/auth/verify-email", async (c) => {
+    const body = await c.req.parseBody();
+    const code = String(body.code || "");
+
+    const record = verifyCode.get(code);
+    if (!record || record.expires < Date.now()) {
+      return c.json({ error: "Invalid or expired code" }, 400);
+    }
+
+    verifyCode.delete(code);
+	console.log(record.userId);
+	await conn`
+    UPDATE users SET email_verified = true WHERE id = ${record.userId.id};
+    `;
+
+    return c.json({
+      message: "Email has been verified",
+    });
+  });
+
   app.post("/auth/login", async (c) => {
     try {
       const body = await c.req.parseBody();
@@ -81,7 +156,7 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       }
 
       const users = await conn`
-        SELECT id, username, email, password_hashed FROM users WHERE email = ${email};
+        SELECT id, username, email, password_hashed, email_verified FROM users WHERE email = ${email};
       `;
 
       if (users.length === 0) {
@@ -93,6 +168,10 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
       if (!valid) {
         return c.json({ error: "Invalid credentials" }, 401);
       }
+
+	  if (!users.email_verified) {
+		return c.json({ error: "Email not verified" }, 401);
+	  }
 
       await conn`
         UPDATE users SET last_login = now() WHERE id = ${user.id};
