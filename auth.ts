@@ -19,6 +19,48 @@ function generateCode(length: number) {
   return code;
 }
 
+export async function sendEmailVerification(conn: SQL, email: string) {
+  const users = await conn`
+    SELECT id, username, email, email_verified FROM users WHERE email = ${email};
+  `;
+
+  if (users.length === 0) {
+    return { message: "If this email is registered or unverified, a code has been sent." };
+  }
+
+  const user = users[0];
+
+  if (user.email_verified === true) {
+    return { message: "If this email is registered or unverified, a code has been sent." };
+  }
+
+  for (const [oldCode, record] of verifyCode.entries()) {
+    if (record.userId === user.id && record.expires > Date.now()) {
+      verifyCode.delete(oldCode);
+    }
+  }
+
+  const code = generateCode(6);
+
+  verifyCode.set(code, {
+    userId: user.id,
+    email: email,
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+  });
+
+  // send email
+  await resend.emails.send({
+    from: "onboarding@resend.dev", // TODO: change domain
+    to: email,
+    subject: "Verify Your Email",
+    html: `<p>Hello ${user.username},</p>
+           <p>Your email verification code is <b>${code}</b></p>
+           <p>This code will expire in 15 minutes.</p>`,
+  });
+
+  return { message: "If this email is registered or unverified, a code has been sent." };
+}
+
 export default function registerAuthRoutes(app: Hono, conn: SQL) {
   app.post("/auth/register", async (c) => {
     try {
@@ -64,6 +106,8 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
         RETURNING id, username, email, created_at;
       `;
 
+	  await sendEmailVerification(conn, email);
+
       return c.json(result[0]);
     } catch (err) {
       console.error("Register error:", err.message, err.stack);
@@ -72,58 +116,16 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
   });
 
   app.post("/auth/send-email-verify", async (c) => {
-	const body = await c.req.parseBody();
+    const body = await c.req.parseBody();
     const email = String(body.email || "");
 
     if (!email) {
-     return c.json({ error: "Email is required" }, 400);
+      return c.json({ error: "Email is required" }, 400);
     }
 
-    const users = await conn`
-    SELECT id, username, email, email_verified FROM users WHERE email = ${email};
-    `;
-
-    if (users.length === 0) {
-      return c.json({
-        message: "If this email is registered or unverified, a code has been sent.",
-      });
-    }
-
-    const user = users[0];
-
-	if (user.email_verified === true) {
-      return c.json({
-        message: "If this email is registered or unverified, a code has been sent.",
-      });
-    }
-
-    const code = generateCode(6);
-
-    for (const [oldCode, record] of verifyCode.entries()) {
-      if (record.userId === user && record.expires > Date.now()) {
-          verifyCode.delete(oldCode);
-      }
-    }
-
-    verifyCode.set(code, {
-        userId: user,
-        email: email,
-        expires: Date.now() + 15 * 60 * 1000,
-    });
-
-    await resend.emails.send({
-      from: "onboarding@resend.dev", // TODO: change domain
-      to: email,
-      subject: "Password Reset Code",
-      html: `<p>Hello,</p>
-            <p>Your email verification code iss <b>${code}</b></p>
-			<p>This code will expire in 15 minutes.</p>`,
-	});
-
-    return c.json({
-      message: "If this email is registered or unverified, a code has been sent.",
-    });
-  });
+    const result = await sendEmailVerification(conn, email);
+    return c.json(result);
+   });
 
    app.post("/auth/verify-email", async (c) => {
     const body = await c.req.parseBody();
