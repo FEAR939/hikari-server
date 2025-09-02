@@ -171,7 +171,7 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
         return c.json({ error: "Invalid credentials" }, 401);
       }
 
-	  if (!users.email_verified) {
+	  if (!user.email_verified) {
 		return c.json({ error: "Email not verified" }, 401);
 	  }
 
