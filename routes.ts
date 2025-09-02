@@ -11,7 +11,7 @@ export default function registerRoutes(app: Hono, conn: SQL) {
   });
 
   app.use("/me", authMiddleware);
-  app.get("/me", async (c) => {
+  app.get("/user", async (c) => {
     const user = c.get("user"); // set in middleware
 
 	const userSQL = await conn`
@@ -25,7 +25,7 @@ export default function registerRoutes(app: Hono, conn: SQL) {
       return c.json({ error: "User not found" }, 404);
     }
 
-    return c.json(userSQL);
+    return c.json(userSQL[0]);
   });
 
 
