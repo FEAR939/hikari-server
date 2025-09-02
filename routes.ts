@@ -12,7 +12,19 @@ export default function registerRoutes(app: Hono, conn: SQL) {
   app.use("/me", authMiddleware);
   app.get("/me", async (c) => {
     const user = c.get("user"); // set in middleware
-    return c.json(user);
+
+	const userSQL = await conn`
+        SELECT id, username, email, avatar, banner
+        FROM users
+        WHERE id = ${user.id}
+        LIMIT 1
+      `;
+
+    if (userSQL.length === 0) {
+      return c.json({ error: "User not found" }, 404);
+    }
+
+    return c.json(userSQL);
   });
 
   app.use("/upload-photo", authMiddleware);
