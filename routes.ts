@@ -11,7 +11,7 @@ export default function registerRoutes(app: Hono, conn: SQL) {
   });
 
   app.use("/me", authMiddleware);
-  app.get("/user", async (c) => {
+  app.get("/me", async (c) => {
     const user = c.get("user"); // set in middleware
 
 	const userSQL = await conn`
@@ -28,6 +28,31 @@ export default function registerRoutes(app: Hono, conn: SQL) {
     return c.json(userSQL[0]);
   });
 
+  app.get("/user/:id", async (c) => {
+    const id = Number(c.req.param("id"));
+
+    if (isNaN(id)) {
+     return c.json({ error: "Invalid user ID" }, 400);
+    }
+
+    try {
+      const result = await conn`
+        SELECT username, avatar, banner
+        FROM users
+        WHERE id = ${id};
+      `;
+
+      if (result.length === 0) {
+        return c.json({ error: "User not found" }, 404);
+      }
+
+      return c.json(result[0]);
+    } catch (err) {
+      console.error("Error fetching user:", err);
+      return c.json({ error: "Failed to fetch user media" }, 500);
+    }
+  });
+
 
   app.use("/uploads/*", serveStatic({ root: "./" }));
   app.use("/upload-photo", authMiddleware);
@@ -40,6 +65,12 @@ export default function registerRoutes(app: Hono, conn: SQL) {
 
     if (!file) {
       return c.json({ error: "File is required" }, 400);
+    }
+
+	const MAX_SIZE = 5 * 1024 * 1024;
+
+	if (file.size > MAX_SIZE) {
+ 	  return c.json({ error: "File must be under 5MB" }, 400);
     }
 
     if (![0, 1].includes(type)) {
