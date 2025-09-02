@@ -115,4 +115,65 @@ export default function registerRoutes(app: Hono, conn: SQL) {
       path: `/uploads/${folder}/${fileName}`,
     });
   });
+
+  app.use("/set-leftoff-at", authMiddleware);
+  app.post("/set-leftoff-at", async (c) => {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+
+	const anilist_id = body.anilist_id;
+	const leftoff = body.leftoff;
+	const episode = body.episode;
+
+	const watch_history = await conn`
+        SELECT *
+        FROM watch_history
+        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode}
+      `;
+
+    if (watch_history.length === 0) {
+       await conn`
+        INSERT INTO watch_history (user_id, episode, leftoff, anilist_id)
+        VALUES (${user.id}, ${episode}, ${leftoff}, ${anilist_id})
+      `;
+    }
+	else {
+	  await conn`
+        UPDATE watch_history SET leftoff = ${leftoff} WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode};
+      `;
+	}
+
+	return c.json({
+		message: "Success"
+	});
+  });
+
+  app.use("/get-leftoff-at", authMiddleware);
+  app.post("/get-leftoff-at", async (c) => {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+
+	const anilist_id = body.anilist_id;
+	const episode_filter_lower = String(body.episode_filter).split("-")[0];
+	const episode_filter_higher = String(body.episode_filter).split("-")[1];
+
+	const leftoff = await conn`
+        SELECT *
+        FROM watch_history
+        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+      `;
+
+    if (leftoff.length === 0) {
+      return c.json({ error: "Not found" }, 404);
+    }
+
+	var toReturn = [];
+
+	leftoff.forEach(episode => {
+		if (episode.episode >= Number(episode_filter_lower) && episode.episode <= Number(episode_filter_higher))
+			toReturn.push(episode);
+	});
+
+    return c.json(toReturn);
+  });
 }
