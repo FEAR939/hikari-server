@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { authMiddleware } from "./authMiddleware";
 import fs from "fs/promises";
 import path from "path";
+import { serveStatic } from "hono/bun";
 
 export default function registerRoutes(app: Hono, conn: SQL) {
   app.get("/health", async (c) => {
@@ -27,6 +28,8 @@ export default function registerRoutes(app: Hono, conn: SQL) {
     return c.json(userSQL);
   });
 
+
+  app.use("/uploads/*", serveStatic({ root: "./" }));
   app.use("/upload-photo", authMiddleware);
   app.post("/upload-photo", async (c) => {
     const user = c.get("user");
