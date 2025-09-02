@@ -17,6 +17,8 @@ export async function authMiddleware(c: Context, next: Next) {
       id: number;
       username: string;
       email: string;
+	  avatar: string;
+	  banner: string;
     };
 
     c.set("user", decoded);
