@@ -176,4 +176,28 @@ export default function registerRoutes(app: Hono, conn: SQL) {
 
     return c.json(toReturn);
   });
+
+  app.use("/get-last-watched", authMiddleware);
+  app.post("/get-last-watched", async (c) => {
+    const user = c.get("user");
+
+    try {
+      const lastWatched = await conn`
+        SELECT DISTINCT ON (anilist_id) anilist_id, episode, created_at
+        FROM watch_history
+        WHERE user_id = ${user.id}
+        ORDER BY anilist_id, created_at DESC
+        LIMIT 50
+      `;
+
+      const sorted = lastWatched
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+
+      return c.json(sorted);
+    } catch (err) {
+      console.error("Error fetching last watched:", err);
+      return c.json({ error: "Failed to fetch last watched" }, 500);
+  }
+  });
 }
