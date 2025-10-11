@@ -147,99 +147,110 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
     });
   });
 
-  app.post("/auth/login", async (c) => {
-    try {
-      const body = await c.req.parseBody();
-      const password = String(body.password || "");
-      const email = String(body.email || "");
+app.post("/auth/login", async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const password = String(body.password || "");
+    const email = String(body.email || "");
 
-      if (!email || !password) {
-        return c.json({ error: "Missing fields" }, 400);
-      }
-
-      const users = await conn`
-        SELECT id, username, email, password_hashed, email_verified FROM users WHERE email = ${email};
-      `;
-
-      if (users.length === 0) {
-        return c.json({ error: "Invalid credentials" }, 401);
-      }
-
-      const user = users[0];
-      const valid = await compare(password, user.password_hashed);
-      if (!valid) {
-        return c.json({ error: "Invalid credentials" }, 401);
-      }
-
-	  if (!user.email_verified) {
-		return c.json({ error: "Email not verified" }, 401);
-	  }
-
-      await conn`
-        UPDATE users SET last_login = now() WHERE id = ${user.id};
-      `;
-
-      const accessToken = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
-        JWT_SECRET,
-        { expiresIn: "1d" }
-      );
-
-	  const refreshToken = generateCode(36);
-
-	  await conn`
-        UPDATE users SET refresh_token = ${refreshToken}, refresh_token_created = NOW() WHERE id = ${user.id};
-      `;
-
-      return c.json({ accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email } });
-    } catch (err) {
-      console.error(err);
-      return c.json({ error: "Failed to login" }, 500);
+    if (!email || !password) {
+      return c.json({ error: "Missing fields" }, 400);
     }
-  });
+
+    const users = await conn`
+      SELECT id, username, email, password_hashed, email_verified
+      FROM users
+      WHERE email = ${email};
+    `;
+
+    if (users.length === 0) {
+      return c.json({ error: "Invalid credentials" }, 401);
+    }
+
+    const user = users[0];
+    const valid = await compare(password, user.password_hashed);
+    if (!valid) return c.json({ error: "Invalid credentials" }, 401);
+
+    if (!user.email_verified) {
+      return c.json({ error: "Email not verified" }, 401);
+    }
+
+    await conn`
+      UPDATE users SET last_login = NOW() WHERE id = ${user.id};
+    `;
+
+    const accessToken = jwt.sign(
+      { id: user.id, username: user.username, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const refreshToken = generateCode(36);
+
+    await conn`
+      INSERT INTO user_sessions (user_id, refresh_token, user_agent, ip_address)
+      VALUES (
+        ${user.id},
+        ${refreshToken},
+        ${c.req.header("user-agent") || ""},
+        ${c.req.header("x-forwarded-for") || c.req.header("cf-connecting-ip") || ""}
+      );
+    `;
+
+    return c.json({
+      accessToken,
+      refreshToken,
+      user: { id: user.id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Failed to login" }, 500);
+  }
+});
+
 
   app.post("/auth/authenticate", async (c) => {
-    const body = await c.req.parseBody();
-    const refreshToken = String(body.refreshToken || "");
+  const body = await c.req.parseBody();
+  const refreshToken = String(body.refreshToken || "");
 
-    if (!refreshToken) {
-      return c.json({ error: "Missing refresh token" }, 400);
+  if (!refreshToken) return c.json({ error: "Missing refresh token" }, 400);
+
+  try {
+    const sessions = await conn`
+      SELECT user_id, refresh_token, expires_at
+      FROM user_sessions
+      WHERE refresh_token = ${refreshToken}
+    `;
+
+    if (sessions.length === 0) {
+      return c.json({ error: "Invalid refresh token" }, 401);
     }
 
-    try {
-      const users = await conn`
-        SELECT id, username, email, refresh_token, refresh_token_created
-        FROM users
-        WHERE refresh_token = ${refreshToken}
-      `;
-
-      if (users.length === 0 || users[0].refresh_token !== refreshToken) {
-        return c.json({ error: "Invalid refresh token" }, 401);
-      }
-
-      const user = users[0];
-      const tokenCreated = new Date(user.refresh_token_created);
-      const now = new Date();
-	  const timezoneoffset = tokenCreated.getTimezoneOffset();
-      tokenCreated.setMilliseconds(tokenCreated.getMilliseconds() + timezoneoffset * 60 * 1000);
-      const tokenAgeMinutes = (now.getTime() - tokenCreated.getTime()) / 1000 / 60; // minutes
-      const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
-      if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
-        return c.json({ error: "Refresh token expired" }, 401);
-      }
-
-      const accessToken = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
-        JWT_SECRET,
-        { expiresIn: "1d" }
-      );
-
-      return c.json({ accessToken });
-    } catch (err) {
-      console.error(err);
-      return c.json({ error: "Server error" }, 500);
+    const session = sessions[0];
+    if (new Date(session.expires_at) < new Date()) {
+      await conn`DELETE FROM user_sessions WHERE refresh_token = ${refreshToken}`;
+      return c.json({ error: "Refresh token expired" }, 401);
     }
-  });
+
+    const users = await conn`
+      SELECT id, username, email
+      FROM users
+      WHERE id = ${session.user_id}
+    `;
+
+    const user = users[0];
+    const accessToken = jwt.sign(
+      { id: user.id, username: user.username, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return c.json({ accessToken });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Server error" }, 500);
+  }
+});
 
   app.post("/auth/password-reset-code", async (c) => {
     try {
@@ -341,53 +352,69 @@ export default function registerAuthRoutes(app: Hono, conn: SQL) {
   });
 
   app.post("/auth/refresh", async (c) => {
-    const body = await c.req.parseBody();
-    const oldRefreshToken = String(body.refreshToken || "");
+  const body = await c.req.parseBody();
+  const oldRefreshToken = String(body.refreshToken || "");
 
-    if (!oldRefreshToken) {
-      return c.json({ error: "Missing refresh token" }, 400);
+  if (!oldRefreshToken) {
+    return c.json({ error: "Missing refresh token" }, 400);
+  }
+
+  try {
+    const sessions = await conn`
+      SELECT user_id, refresh_token, expires_at
+      FROM user_sessions
+      WHERE refresh_token = ${oldRefreshToken}
+    `;
+
+    if (sessions.length === 0) {
+      return c.json({ error: "Invalid refresh token" }, 401);
     }
 
-    try {
-      const users = await conn`
-        SELECT id, username, email, refresh_token, refresh_token_created
-        FROM users
-        WHERE refresh_token = ${oldRefreshToken}
-      `;
-
-      if (users.length === 0 || users[0].refresh_token !== oldRefreshToken) {
-        return c.json({ error: "Invalid refresh token" }, 401);
-      }
-
-      const user = users[0];
-      const tokenCreated = new Date(user.refresh_token_created);
-      const now = new Date();
-	  const timezoneoffset = tokenCreated.getTimezoneOffset();
-      tokenCreated.setMilliseconds(tokenCreated.getMilliseconds() + timezoneoffset * 60 * 1000);
-      const tokenAgeMinutes = (now.getTime() - tokenCreated.getTime()) / 1000 / 60; // minutes
-      const MAX_REFRESH_TOKEN_AGE_MINUTES = 60 * 24 * 90; // 90 days
-      if (tokenAgeMinutes > MAX_REFRESH_TOKEN_AGE_MINUTES) {
-        return c.json({ error: "Refresh token expired" }, 401);
-      }
-
-      const accessToken = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
-        JWT_SECRET,
-        { expiresIn: "1d" }
-      );
-
-      const newRefreshToken = generateCode(36);
-
-      await conn`
-        UPDATE users
-        SET refresh_token = ${newRefreshToken}, refresh_token_created = NOW()
-        WHERE id = ${user.id}
-      `;
-
-      return c.json({ accessToken, refreshToken: newRefreshToken });
-    } catch (err) {
-      console.error(err);
-      return c.json({ error: "Server error" }, 500);
+    const session = sessions[0];
+    if (new Date(session.expires_at) < new Date()) {
+      await conn`DELETE FROM user_sessions WHERE refresh_token = ${oldRefreshToken}`;
+      return c.json({ error: "Refresh token expired" }, 401);
     }
-  });
+
+    const users = await conn`
+      SELECT id, username, email
+      FROM users
+      WHERE id = ${session.user_id}
+    `;
+
+    const user = users[0];
+
+    const accessToken = jwt.sign(
+      { id: user.id, username: user.username, email: user.email },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const newRefreshToken = generateCode(36);
+
+    await conn`
+      UPDATE user_sessions
+      SET refresh_token = ${newRefreshToken}, created_at = NOW(), expires_at = NOW() + INTERVAL '90 days'
+      WHERE refresh_token = ${oldRefreshToken}
+    `;
+
+    return c.json({ accessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Server error" }, 500);
+  }
+});
+
+app.post("/auth/logout", async (c) => {
+  const body = await c.req.parseBody();
+  const refreshToken = String(body.refreshToken || "");
+
+  if (!refreshToken) return c.json({ error: "Missing refresh token" }, 400);
+
+  await conn`
+    DELETE FROM user_sessions WHERE refresh_token = ${refreshToken};
+  `;
+
+  return c.json({ message: "Logged out successfully" });
+});
 }
