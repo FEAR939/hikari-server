@@ -1,0 +1,19 @@
+{
+  "name": "hikari-server",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "bun": "^1.2.20",
+    "hono": "^4.9.2",
+    "jsonwebtoken": "^9.0.2",
+    "resend": "^6.0.1"
+  }
+}
