@@ -200,4 +200,73 @@ export default function registerRoutes(app: Hono, conn: SQL) {
       return c.json({ error: "Failed to fetch last watched" }, 500);
   }
   });
+
+  app.use("/set-bookmark", authMiddleware);
+app.post("/set-bookmark", async (c) => {
+  const user = c.get("user");
+  const body = await c.req.parseBody();
+
+  const anilist_id = body.anilist_id;
+  const subscribed = body.subscribed ?? false;
+  const notifications = body.notifications ?? false;
+  const remove = body.remove ?? false;
+
+  if (!anilist_id) {
+    return c.json({ error: "Missing anilist_id" }, 400);
+  }
+
+  try {
+    const existing = await conn`
+      SELECT *
+      FROM user_bookmarks
+      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+    `;
+
+    if (existing.length === 0) {
+		 await conn`
+        INSERT INTO user_bookmarks (user_id, anilist_id, subscribed, notifications)
+        VALUES (${user.id}, ${anilist_id}, ${subscribed}, ${notifications})
+      `;
+    }
+	else if(remove) {
+	 await conn`
+    	DELETE FROM user_bookmarks
+   	 	WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+ 	 	`;
+  		return c.json({ message: "Bookmark removed" });
+	}
+	else {
+      await conn`
+        UPDATE user_bookmarks
+        SET subscribed = ${subscribed}, notifications = ${notifications}
+        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+      `;
+    }
+
+    return c.json({ message: "Bookmark saved successfully" });
+  } catch (err) {
+    console.error("Error saving bookmark:", err);
+    return c.json({ error: "Failed to save bookmark" }, 500);
+  }
+});
+
+
+  app.use("/get-bookmarks", authMiddleware);
+  app.post("/get-bookmarks", async (c) => {
+    const user = c.get("user");
+
+    try {
+      const bookmarks = await conn`
+        SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
+        FROM user_bookmarks
+        WHERE user_id = ${user.id}
+        ORDER BY created_at DESC
+      `; // TODO: Pagination
+
+      return c.json(bookmarks);
+    } catch (err) {
+      console.error("Error fetching bookmarks:", err);
+      return c.json({ error: "Failed to fetch bookmarks" }, 500);
+  }
+  });
 }
