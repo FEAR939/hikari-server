@@ -68,7 +68,7 @@ export const BookmarkSchema = z.object({
 });
 
 export const GetBookmarkRequestSchema = z.object({
-  anilist_id: z.number().optional().openapi({ example: "12345" }),
+  anilist_id: z.string().optional().openapi({ example: "12345" }),
 });
 
 export const SetBookmarkRequestSchema = z.object({
