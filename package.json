@@ -10,6 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@hono/zod-openapi": "^1.1.4",
+    "@scalar/hono-api-reference": "^0.9.22",
     "bcryptjs": "^3.0.2",
     "bun": "^1.2.20",
     "hono": "^4.9.2",

@@ -1,51 +1,49 @@
 import { SQL } from "bun";
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { authMiddleware } from "./authMiddleware";
 import fs from "fs/promises";
 import path from "path";
 import { serveStatic } from "hono/bun";
+import * as routes from "./routes.routes";
+import { z } from "@hono/zod-openapi";
 
-export default function registerRoutes(app: Hono, conn: SQL) {
-  app.get("/health", async (c) => {
+export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
+  // Health check
+  app.openapi(routes.healthRoute, async (c) => {
     return c.json({ status: "ok" });
   });
 
+  // Get current user profile
   app.use("/me", authMiddleware);
-  app.get("/me", async (c) => {
-    const user = c.get("user"); // set in middleware
-
-	const userSQL = await conn`
-        SELECT id, username, email, avatar, banner
-        FROM users
-        WHERE id = ${user.id}
-        LIMIT 1
-      `;
-
+  app.openapi(routes.getMeRoute, async (c) => {
+    const user = c.get("user");
+    const userSQL = await conn`
+      SELECT id, username, email, avatar, banner
+      FROM users
+      WHERE id = ${user.id}
+      LIMIT 1
+    `;
     if (userSQL.length === 0) {
       return c.json({ error: "User not found" }, 404);
     }
-
     return c.json(userSQL[0]);
   });
 
-  app.get("/user/:id", async (c) => {
+  // Get user by ID
+  app.openapi(routes.getUserRoute, async (c) => {
     const id = Number(c.req.param("id"));
-
     if (isNaN(id)) {
-     return c.json({ error: "Invalid user ID" }, 400);
+      return c.json({ error: "Invalid user ID" }, 400);
     }
-
     try {
       const result = await conn`
         SELECT username, avatar, banner
         FROM users
         WHERE id = ${id};
       `;
-
       if (result.length === 0) {
         return c.json({ error: "User not found" }, 404);
       }
-
       return c.json(result[0]);
     } catch (err) {
       console.error("Error fetching user:", err);
@@ -53,24 +51,24 @@ export default function registerRoutes(app: Hono, conn: SQL) {
     }
   });
 
-
+  // Serve static files
   app.use("/uploads/*", serveStatic({ root: "./" }));
-  app.use("/upload-photo", authMiddleware);
-  app.post("/upload-photo", async (c) => {
-    const user = c.get("user");
 
+  // Upload photo
+  app.use("/upload-photo", authMiddleware);
+  app.openapi(routes.uploadPhotoRoute, async (c) => {
+    const user = c.get("user");
     const body = await c.req.parseBody();
     const file = body["file"] as File | undefined;
-    const type = Number(body["type"]); // 0 - Avatar, 1 - Banner
+    const type = Number(body["type"]);
 
     if (!file) {
       return c.json({ error: "File is required" }, 400);
     }
 
-	const MAX_SIZE = 5 * 1024 * 1024;
-
-	if (file.size > MAX_SIZE) {
- 	  return c.json({ error: "File must be under 5MB" }, 400);
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      return c.json({ error: "File must be under 5MB" }, 400);
     }
 
     if (![0, 1].includes(type)) {
@@ -79,7 +77,6 @@ export default function registerRoutes(app: Hono, conn: SQL) {
 
     const folder = type === 0 ? "avatars" : "banners";
     const column = type === 0 ? "avatar" : "banner";
-
     const uploadDir = path.resolve(`./uploads/${folder}`);
     await fs.mkdir(uploadDir, { recursive: true });
 
@@ -91,12 +88,11 @@ export default function registerRoutes(app: Hono, conn: SQL) {
       SELECT ${conn(column)} FROM users WHERE id = ${user.id}
     `;
     const oldPath = existing[0]?.[column] as string | null;
-
     if (oldPath) {
       const oldFilePath = path.resolve("." + oldPath);
       try {
         await fs.unlink(oldFilePath);
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Could not delete old file:", oldFilePath, err.message);
       }
     }
@@ -116,71 +112,72 @@ export default function registerRoutes(app: Hono, conn: SQL) {
     });
   });
 
+  // Set leftoff position
   app.use("/set-leftoff-at", authMiddleware);
-  app.post("/set-leftoff-at", async (c) => {
+  app.openapi(routes.setLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
+    const anilist_id = body.anilist_id;
+    const leftoff = body.leftoff;
+    const episode = body.episode;
 
-	const anilist_id = body.anilist_id;
-	const leftoff = body.leftoff;
-	const episode = body.episode;
-
-	const watch_history = await conn`
-        SELECT *
-        FROM watch_history
-        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode}
-      `;
+    const watch_history = await conn`
+      SELECT *
+      FROM watch_history
+      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode}
+    `;
 
     if (watch_history.length === 0) {
-       await conn`
+      await conn`
         INSERT INTO watch_history (user_id, episode, leftoff, anilist_id)
         VALUES (${user.id}, ${episode}, ${leftoff}, ${anilist_id})
       `;
-    }
-	else {
-	  await conn`
-        UPDATE watch_history SET leftoff = ${leftoff} WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode};
+    } else {
+      await conn`
+        UPDATE watch_history SET leftoff = ${leftoff}
+        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode};
       `;
-	}
+    }
 
-	return c.json({
-		message: "Success"
-	});
+    return c.json({ message: "Success" });
   });
 
+  // Get leftoff positions
   app.use("/get-leftoff-at", authMiddleware);
-  app.post("/get-leftoff-at", async (c) => {
+  app.openapi(routes.getLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
+    const anilist_id = body.anilist_id;
+    const episode_filter_lower = String(body.episode_filter).split("-")[0];
+    const episode_filter_higher = String(body.episode_filter).split("-")[1];
 
-	const anilist_id = body.anilist_id;
-	const episode_filter_lower = String(body.episode_filter).split("-")[0];
-	const episode_filter_higher = String(body.episode_filter).split("-")[1];
-
-	const leftoff = await conn`
-        SELECT *
-        FROM watch_history
-        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
-      `;
+    const leftoff = await conn`
+      SELECT *
+      FROM watch_history
+      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+    `;
 
     if (leftoff.length === 0) {
       return c.json({ error: "Not found" }, 404);
     }
 
-	var toReturn = [];
-
-	leftoff.forEach(episode => {
-		if (episode.episode >= Number(episode_filter_lower) && episode.episode <= Number(episode_filter_higher))
-			toReturn.push(episode);
-	});
+    const toReturn: any[] = [];
+    leftoff.forEach((episode: any) => {
+      if (
+        episode.episode >= Number(episode_filter_lower) &&
+        episode.episode <= Number(episode_filter_higher)
+      ) {
+        toReturn.push(episode);
+      }
+    });
 
     return c.json(toReturn);
   });
 
+  // Get last watched
   app.use("/get-last-watched", authMiddleware);
-  app.post("/get-last-watched", async (c) => {
+  app.openapi(routes.getLastWatchedRoute, async (c) => {
     const user = c.get("user");
-
     try {
       const lastWatched = await conn`
         SELECT DISTINCT ON (anilist_id) anilist_id, episode, created_at
@@ -191,82 +188,81 @@ export default function registerRoutes(app: Hono, conn: SQL) {
       `;
 
       const sorted = lastWatched
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
         .slice(0, 10);
 
       return c.json(sorted);
     } catch (err) {
       console.error("Error fetching last watched:", err);
       return c.json({ error: "Failed to fetch last watched" }, 500);
-  }
+    }
   });
 
+  // Set bookmark
   app.use("/set-bookmark", authMiddleware);
-app.post("/set-bookmark", async (c) => {
-  const user = c.get("user");
-  const body = await c.req.parseBody();
+  app.openapi(routes.setBookmarkRoute, async (c) => {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+    const anilist_id = body.anilist_id;
+    const subscribed = body.subscribed ?? false;
+    const notifications = body.notifications ?? false;
+    const remove = body.remove ?? false;
 
-  const anilist_id = body.anilist_id;
-  const subscribed = body.subscribed ?? false;
-  const notifications = body.notifications ?? false;
-  const remove = body.remove ?? false;
-
-  if (!anilist_id) {
-    return c.json({ error: "Missing anilist_id" }, 400);
-  }
-
-  try {
-    const existing = await conn`
-      SELECT *
-      FROM user_bookmarks
-      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
-    `;
-
-    if (existing.length === 0) {
-		 await conn`
-        INSERT INTO user_bookmarks (user_id, anilist_id, subscribed, notifications)
-        VALUES (${user.id}, ${anilist_id}, ${subscribed}, ${notifications})
-      `;
+    if (!anilist_id) {
+      return c.json({ error: "Missing anilist_id" }, 400);
     }
-	else if(remove) {
-	 await conn`
-    	DELETE FROM user_bookmarks
-   	 	WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
- 	 	`;
-  		return c.json({ message: "Bookmark removed" });
-	}
-	else {
-      await conn`
-        UPDATE user_bookmarks
-        SET subscribed = ${subscribed}, notifications = ${notifications}
+
+    try {
+      const existing = await conn`
+        SELECT *
+        FROM user_bookmarks
         WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
       `;
+
+      if (existing.length === 0) {
+        await conn`
+          INSERT INTO user_bookmarks (user_id, anilist_id, subscribed, notifications)
+          VALUES (${user.id}, ${anilist_id}, ${subscribed}, ${notifications})
+        `;
+      } else if (remove) {
+        await conn`
+          DELETE FROM user_bookmarks
+          WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+        `;
+        return c.json({ message: "Bookmark removed" });
+      } else {
+        await conn`
+          UPDATE user_bookmarks
+          SET subscribed = ${subscribed}, notifications = ${notifications}
+          WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+        `;
+      }
+
+      return c.json({ message: "Bookmark saved successfully" });
+    } catch (err) {
+      console.error("Error saving bookmark:", err);
+      return c.json({ error: "Failed to save bookmark" }, 500);
     }
+  });
 
-    return c.json({ message: "Bookmark saved successfully" });
-  } catch (err) {
-    console.error("Error saving bookmark:", err);
-    return c.json({ error: "Failed to save bookmark" }, 500);
-  }
-});
-
-
+  // Get bookmarks
   app.use("/get-bookmarks", authMiddleware);
-  app.post("/get-bookmarks", async (c) => {
+  app.openapi(routes.getBookmarksRoute, async (c) => {
     const user = c.get("user");
-
     try {
       const bookmarks = await conn`
         SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
         FROM user_bookmarks
         WHERE user_id = ${user.id}
         ORDER BY created_at DESC
-      `; // TODO: Pagination
-
+      `;
       return c.json(bookmarks);
     } catch (err) {
       console.error("Error fetching bookmarks:", err);
       return c.json({ error: "Failed to fetch bookmarks" }, 500);
-  }
+    }
   });
 }
