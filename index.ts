@@ -22,6 +22,7 @@ app.use("*", cors({ origin: "*" }));
 app.use("*", logger());
 
 async function main() {
+  let POSTGRESQL_CONNECTIONS = 0;
   const db = new SQL({
     // Required
     url: `postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`,
@@ -30,10 +31,16 @@ async function main() {
 
     // Callbacks
     onconnect: (client) => {
-      console.log("Connected to database");
+      POSTGRESQL_CONNECTIONS++;
+      console.warn(
+        `A postgres connection was opened. Connections currently open: ${POSTGRESQL_CONNECTIONS}`,
+      );
     },
     onclose: (client) => {
-      console.log("Connection closed");
+      POSTGRESQL_CONNECTIONS--;
+      console.warn(
+        `A postgres connection was closed. Connections currently open: ${POSTGRESQL_CONNECTIONS}`,
+      );
     },
   });
 
@@ -64,11 +71,14 @@ async function main() {
   bun.serve({
     port: 5000,
     fetch: app.fetch,
-    // tls: {
+    // tls: { // These are needed for HTTPS, only if you don't have a reverse proxy in front of the server
     //   certFile: `${process.env.HTTPS_CERT_PATH}`,
     //   keyFile: `${process.env.HTTPS_CERT_KEY}`,
     // },
   });
+
+  console.log("🚀 Server running on http://0.0.0.0:5000");
+  console.log("📚 API Docs available at http://0.0.0.0:5000/docs");
 }
 
 main();
