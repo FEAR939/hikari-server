@@ -258,7 +258,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
       const bookmarks = await conn`
       SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
       FROM user_bookmarks
-      WHERE user_id = ${anilist_id ? user.id + " AND anilist_id = " + anilist_id : user.id}
+      WHERE user_id = ${user.id} ${anilist_id ? conn`AND anilist_id = ${anilist_id}` : conn``}
       ORDER BY anilist_id, created_at DESC
       `;
 
