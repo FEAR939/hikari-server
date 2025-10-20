@@ -62,7 +62,7 @@ export const LastWatchedSchema = z.object({
 
 // Bookmark Schemas
 export const BookmarkSchema = z.object({
-  anilist_id: z.number(),
+  anilist_id: z.number().optional().openapi({ example: "12345" }),
   subscribed: z.boolean(),
   notifications: z.boolean(),
 });
