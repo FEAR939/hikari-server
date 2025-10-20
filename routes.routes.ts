@@ -326,8 +326,17 @@ export const getBookmarksRoute = createRoute({
   path: "/get-bookmarks",
   tags: ["Bookmarks"],
   summary: "Get user bookmarks",
-  description: "Returns all bookmarked anime for the user",
+  description: "Returns all or specific bookmarked anime for the user",
   security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/x-www-form-urlencoded": {
+          schema: schemas.GetBookmarkRequestSchema,
+        },
+      },
+    },
+  },
   responses: {
     200: {
       content: {
