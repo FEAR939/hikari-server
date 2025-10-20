@@ -252,7 +252,10 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.use("/get-bookmarks", authMiddleware);
   app.openapi(routes.getBookmarksRoute, async (c) => {
     const user = c.get("user");
+const body = await c.req.parseBody();
+const anilist_id = body.anilist_id ?? 0;
     try {
+if (anilist_id){
       const bookmarks = await conn`
         SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
         FROM user_bookmarks
@@ -260,6 +263,17 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
         ORDER BY created_at DESC
       `;
       return c.json(bookmarks);
+}
+else {
+      const bookmarks = await conn`
+        SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
+        FROM user_bookmarks
+        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+        ORDER BY created_at DESC
+      `;
+      return c.json(bookmarks);
+}
+
     } catch (err) {
       console.error("Error fetching bookmarks:", err);
       return c.json({ error: "Failed to fetch bookmarks" }, 500);
