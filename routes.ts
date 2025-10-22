@@ -117,25 +117,25 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.openapi(routes.setLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
-    const anilist_id = body.anilist_id;
+    const kitsu_id = body.kitsu_id;
     const leftoff = body.leftoff;
     const episode = body.episode;
 
     const watch_history = await conn`
       SELECT *
       FROM watch_history
-      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode}
+      WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id} AND episode = ${episode}
     `;
 
     if (watch_history.length === 0) {
       await conn`
-        INSERT INTO watch_history (user_id, episode, leftoff, anilist_id)
-        VALUES (${user.id}, ${episode}, ${leftoff}, ${anilist_id})
+        INSERT INTO watch_history (user_id, episode, leftoff, kitsu_id)
+        VALUES (${user.id}, ${episode}, ${leftoff}, ${kitsu_id})
       `;
     } else {
       await conn`
         UPDATE watch_history SET leftoff = ${leftoff}
-        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id} AND episode = ${episode};
+        WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id} AND episode = ${episode};
       `;
     }
 
@@ -147,14 +147,14 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.openapi(routes.getLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
-    const anilist_id = body.anilist_id;
+    const kitsu_id = body.kitsu_id;
     const episode_filter_lower = String(body.episode_filter).split("-")[0];
     const episode_filter_higher = String(body.episode_filter).split("-")[1];
 
     const leftoff = await conn`
       SELECT *
       FROM watch_history
-      WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+      WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id}
     `;
 
     if (leftoff.length === 0) {
@@ -180,10 +180,10 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const user = c.get("user");
     try {
       const lastWatched = await conn`
-        SELECT DISTINCT ON (anilist_id) anilist_id, episode, created_at
+        SELECT DISTINCT ON (kitsu_id) kitsu_id, episode, created_at
         FROM watch_history
         WHERE user_id = ${user.id}
-        ORDER BY anilist_id, created_at DESC
+        ORDER BY kitsu_id, created_at DESC
         LIMIT 50
       `;
 
@@ -206,38 +206,38 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.openapi(routes.setBookmarkRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
-    const anilist_id = body.anilist_id;
+    const kitsu_id = body.kitsu_id;
     const subscribed = body.subscribed ?? false;
     const notifications = body.notifications ?? false;
     const remove = body.remove ?? false;
 
-    if (!anilist_id) {
-      return c.json({ error: "Missing anilist_id" }, 400);
+    if (!kitsu_id) {
+      return c.json({ error: "Missing kitsu_id" }, 400);
     }
 
     try {
       const existing = await conn`
         SELECT *
         FROM user_bookmarks
-        WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+        WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id}
       `;
 
       if (existing.length === 0) {
         await conn`
-          INSERT INTO user_bookmarks (user_id, anilist_id, subscribed, notifications)
-          VALUES (${user.id}, ${anilist_id}, ${subscribed}, ${notifications})
+          INSERT INTO user_bookmarks (user_id, kitsu_id, subscribed, notifications)
+          VALUES (${user.id}, ${kitsu_id}, ${subscribed}, ${notifications})
         `;
       } else if (remove) {
         await conn`
           DELETE FROM user_bookmarks
-          WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+          WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id}
         `;
         return c.json({ message: "Bookmark removed" });
       } else {
         await conn`
           UPDATE user_bookmarks
           SET subscribed = ${subscribed}, notifications = ${notifications}
-          WHERE user_id = ${user.id} AND anilist_id = ${anilist_id}
+          WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id}
         `;
       }
 
@@ -253,13 +253,13 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.openapi(routes.getBookmarksRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
-    const anilist_id = body.anilist_id ?? 0;
+    const kitsu_id = body.kitsu_id ?? 0;
     try {
       const bookmarks = await conn`
-      SELECT DISTINCT ON (anilist_id) anilist_id, subscribed, notifications
+      SELECT DISTINCT ON (kitsu_id) kitsu_id, subscribed, notifications
       FROM user_bookmarks
-      WHERE user_id = ${user.id} ${anilist_id ? conn`AND anilist_id = ${anilist_id}` : conn``}
-      ORDER BY anilist_id, created_at DESC
+      WHERE user_id = ${user.id} ${kitsu_id ? conn`AND kitsu_id = ${kitsu_id}` : conn``}
+      ORDER BY kitsu_id, created_at DESC
       `;
 
       return c.json(bookmarks);

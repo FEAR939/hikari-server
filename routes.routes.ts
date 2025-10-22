@@ -300,7 +300,7 @@ export const setBookmarkRoute = createRoute({
           schema: schemas.ErrorSchema,
         },
       },
-      description: "Missing anilist_id",
+      description: "Missing kitsu_id",
     },
     401: {
       content: {
