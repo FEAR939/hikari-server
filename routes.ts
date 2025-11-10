@@ -179,7 +179,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
         LIMIT 30
       `;
 
-      return c.json(sorted);
+      return c.json(lastWatched);
     } catch (err) {
       console.error("Error fetching last watched:", err);
       return c.json({ error: "Failed to fetch last watched" }, 500);
