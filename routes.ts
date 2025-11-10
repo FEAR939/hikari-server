@@ -122,11 +122,12 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const episode = body.episode;
 
     await conn`
-      INSERT INTO watch_history (user_id, kitsu_id, episode, created_at)
-      VALUES (${user.id}, ${kitsuId}, ${episode}, NOW())
+      INSERT INTO watch_history (user_id, kitsu_id, episode, leftoff, created_at)
+      VALUES (${user.id}, ${kitsu_id}, ${episode}, ${leftoff}, NOW())
       ON CONFLICT (user_id, kitsu_id, episode)
       DO UPDATE SET
         episode = ${episode},
+        leftoff = ${leftoff},
         created_at = NOW()
     `;
 
