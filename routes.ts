@@ -179,13 +179,6 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
         LIMIT 30
       `;
 
-      const sorted = lastWatched
-        .sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
-        .slice(0, 10);
-
       return c.json(sorted);
     } catch (err) {
       console.error("Error fetching last watched:", err);
