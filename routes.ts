@@ -121,23 +121,14 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const leftoff = body.leftoff;
     const episode = body.episode;
 
-    const watch_history = await conn`
-      SELECT *
-      FROM watch_history
-      WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id} AND episode = ${episode}
+    await conn`
+      INSERT INTO watch_history (user_id, kitsu_id, episode, created_at)
+      VALUES (${user.id}, ${kitsuId}, ${episode}, NOW())
+      ON CONFLICT (user_id, kitsu_id, episode)
+      DO UPDATE SET
+        episode = ${episode},
+        created_at = NOW()
     `;
-
-    if (watch_history.length === 0) {
-      await conn`
-        INSERT INTO watch_history (user_id, episode, leftoff, kitsu_id)
-        VALUES (${user.id}, ${episode}, ${leftoff}, ${kitsu_id})
-      `;
-    } else {
-      await conn`
-        UPDATE watch_history SET leftoff = ${leftoff}
-        WHERE user_id = ${user.id} AND kitsu_id = ${kitsu_id} AND episode = ${episode};
-      `;
-    }
 
     return c.json({ message: "Success" });
   });
@@ -180,15 +171,11 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const user = c.get("user");
     try {
       const lastWatched = await conn`
-        SELECT kitsu_id, episode, created_at
-          FROM (
-            SELECT DISTINCT ON (kitsu_id) kitsu_id, episode, created_at
-            FROM watch_history
-            WHERE user_id = ${user.id}
-            ORDER BY kitsu_id, created_at DESC
-          ) AS latest
-          ORDER BY created_at DESC
-          LIMIT 30
+        SELECT DISTINCT ON (kitsu_id) kitsu_id, episode, created_at
+        FROM watch_history
+        WHERE user_id = ${user.id}
+        ORDER BY kitsu_id, created_at DESC
+        LIMIT 30
       `;
 
       const sorted = lastWatched
