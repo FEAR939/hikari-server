@@ -20,7 +20,7 @@ const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE;
 
 const app = new OpenAPIHono();
 app.use(
-  "*",
+  "/*",
   cors({
     origin: "*", // Allows all origins (use only in development)
     allowHeaders: ["Content-Type", "Authorization"],
@@ -28,7 +28,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use("*", logger());
+app.use("/*", logger());
 
 async function main() {
   let POSTGRESQL_CONNECTIONS = 0;
