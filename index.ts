@@ -54,7 +54,7 @@ async function main() {
   registerRoutes(app, conn);
   //registerAuthRoutes(app, conn);
 
-  app.on(["POST", "GET"], "/", (c) => auth.handler(c.req.raw));
+  app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
   // Add OpenAPI spec endpoint
   app.doc("/openapi.json", {
