@@ -6,6 +6,7 @@ import registerRoutes from "./routes";
 import registerAuthRoutes from "./auth";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { auth } from "./lib/auth";
 
 const SERVER_PORT = process.env.SERVER_PORT;
 const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH;
@@ -23,6 +24,10 @@ app.use("*", logger());
 
 async function main() {
   let POSTGRESQL_CONNECTIONS = 0;
+
+  console.log(
+    `postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`,
+  );
   const db = new SQL({
     // Required
     url: `postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`,
@@ -47,7 +52,9 @@ async function main() {
   const conn = await db.connect();
 
   registerRoutes(app, conn);
-  registerAuthRoutes(app, conn);
+  //registerAuthRoutes(app, conn);
+
+  app.on(["POST", "GET"], "/", (c) => auth.handler(c.req.raw));
 
   // Add OpenAPI spec endpoint
   app.doc("/openapi.json", {
