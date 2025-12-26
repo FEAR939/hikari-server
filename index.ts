@@ -19,7 +19,15 @@ const POSTGRES_PORT = process.env.POSTGRES_PORT;
 const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE;
 
 const app = new OpenAPIHono();
-app.use("*", cors({ origin: "*" }));
+app.use(
+  "*",
+  cors({
+    origin: "*", // Allows all origins (use only in development)
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS", "PUT", "DELETE"],
+    credentials: true,
+  }),
+);
 app.use("*", logger());
 
 async function main() {
