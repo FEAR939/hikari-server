@@ -170,6 +170,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   // app.use("/get-last-watched", authMiddleware);
   app.openapi(routes.getLastWatchedRoute, async (c) => {
     const user = c.get("user");
+    console.log(user);
     try {
       const lastWatched = await conn`
         WITH latest_per_show AS (
