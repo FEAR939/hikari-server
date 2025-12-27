@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 
 export const auth = betterAuth({
-  baseurl: process.env.BETTER_AUTH_URL,
+  baseURL: process.env.BETTER_AUTH_URL,
   database: new Pool({
     user: process.env.POSTGRES_USERNAME,
     host: process.env.POSTGRES_HOST,
