@@ -37,8 +37,8 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     }
     try {
       const result = await conn`
-        SELECT username, avatar, banner
-        FROM users
+        SELECT name, image
+        FROM user
         WHERE id = ${id};
       `;
       if (result.length === 0) {
