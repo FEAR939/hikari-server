@@ -75,9 +75,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
       return c.json({ error: "Invalid type (must be 0 or 1)" }, 400);
     }
 
-    const folder = type === 0 ? "avatars" : "banners";
-    const column = type === 0 ? "avatar" : "banner";
-    const uploadDir = path.resolve(`./uploads/${folder}`);
+    const uploadDir = path.resolve(`./uploads/avatars`);
     await fs.mkdir(uploadDir, { recursive: true });
 
     const fileExt = path.extname(file.name) || ".png";
@@ -85,9 +83,9 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const filePath = path.join(uploadDir, fileName);
 
     const existing = await conn`
-      SELECT ${conn(column)} FROM users WHERE id = ${user.id}
+      SELECT image FROM user WHERE id = ${user.id}
     `;
-    const oldPath = existing[0]?.[column] as string | null;
+    const oldPath = existing[0]?.image as string | null;
     if (oldPath) {
       const oldFilePath = path.resolve("." + oldPath);
       try {
@@ -101,14 +99,14 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
 
     await conn`
       UPDATE user
-      SET image = ${"/uploads/" + folder + "/" + fileName}
-      WHERE id = ${user.id}::text
+      SET image = ${"/uploads/avatars/" + fileName}
+      WHERE id = ${user.id}
     `;
 
     return c.json({
       message: "Upload successful",
-      type: type === 0 ? "avatar" : "banner",
-      path: `/uploads/${folder}/${fileName}`,
+      type: "avatar",
+      path: `/uploads/avatars/${fileName}`,
     });
   });
 
