@@ -102,7 +102,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     await conn`
       UPDATE user
       SET image = ${"/uploads/" + folder + "/" + fileName}
-      WHERE id = ${user.id}
+      WHERE id = ${String(user.id)}
     `;
 
     return c.json({
