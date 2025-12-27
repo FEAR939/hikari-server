@@ -1,4 +1,4 @@
-import { SQL } from "bun";
+import { sql, SQL } from "bun";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { authMiddleware } from "./authMiddleware";
 import fs from "fs/promises";
@@ -102,7 +102,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     await conn`
       UPDATE user
       SET image = ${"/uploads/" + folder + "/" + fileName}
-      WHERE id = ${String(user.id)}
+      WHERE id = ${sql(user.id)}
     `;
 
     return c.json({
