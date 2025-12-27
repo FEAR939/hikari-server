@@ -29,6 +29,22 @@ app.use(
   }),
 );
 app.use("/api/auth/*", logger());
+app.use("*", async (c, next) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+  if (!session) {
+    c.set("user", null);
+    c.set("session", null);
+    await next();
+    return;
+  }
+
+  c.set("user", session.user);
+  c.set("session", session.session);
+  await next();
+});
+
+app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 async function main() {
   let POSTGRESQL_CONNECTIONS = 0;
@@ -61,23 +77,6 @@ async function main() {
 
   registerRoutes(app, conn);
   //registerAuthRoutes(app, conn);
-
-  app.use("*", async (c, next) => {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
-
-    if (!session) {
-      c.set("user", null);
-      c.set("session", null);
-      await next();
-      return;
-    }
-
-    c.set("user", session.user);
-    c.set("session", session.session);
-    await next();
-  });
-
-  app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
   // Add OpenAPI spec endpoint
   app.doc("/openapi.json", {
