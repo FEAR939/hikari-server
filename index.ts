@@ -28,7 +28,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use("/*", logger());
+app.use("/api/auth/*", logger());
 
 async function main() {
   let POSTGRESQL_CONNECTIONS = 0;
