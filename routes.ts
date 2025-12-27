@@ -14,7 +14,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Get current user profile
-  app.use("/me", authMiddleware);
+  // app.use("/me", authMiddleware);
   app.openapi(routes.getMeRoute, async (c) => {
     const user = c.get("user");
     const userSQL = await conn`
@@ -55,7 +55,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.use("/uploads/*", serveStatic({ root: "./" }));
 
   // Upload photo
-  app.use("/upload-photo", authMiddleware);
+  // app.use("/upload-photo", authMiddleware);
   app.openapi(routes.uploadPhotoRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
@@ -113,7 +113,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Set leftoff position
-  app.use("/set-leftoff-at", authMiddleware);
+  // app.use("/set-leftoff-at", authMiddleware);
   app.openapi(routes.setLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
@@ -135,7 +135,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Get leftoff positions
-  app.use("/get-leftoff-at", authMiddleware);
+  // app.use("/get-leftoff-at", authMiddleware);
   app.openapi(routes.getLeftoffRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
@@ -167,7 +167,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Get last watched
-  app.use("/get-last-watched", authMiddleware);
+  // app.use("/get-last-watched", authMiddleware);
   app.openapi(routes.getLastWatchedRoute, async (c) => {
     const user = c.get("user");
     try {
@@ -197,7 +197,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Set bookmark
-  app.use("/set-bookmark", authMiddleware);
+  // app.use("/set-bookmark", authMiddleware);
   app.openapi(routes.setBookmarkRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
@@ -244,7 +244,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   });
 
   // Get bookmarks
-  app.use("/get-bookmarks", authMiddleware);
+  // app.use("/get-bookmarks", authMiddleware);
   app.openapi(routes.getBookmarksRoute, async (c) => {
     const user = c.get("user");
     const body = await c.req.parseBody();
