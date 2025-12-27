@@ -100,8 +100,8 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     await Bun.write(filePath, file);
 
     await conn`
-      UPDATE users
-      SET ${conn(column)} = ${"/uploads/" + folder + "/" + fileName}
+      UPDATE user
+      SET image = ${"/uploads/" + folder + "/" + fileName}
       WHERE id = ${user.id}
     `;
 
