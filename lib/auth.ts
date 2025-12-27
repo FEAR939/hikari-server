@@ -22,4 +22,5 @@ export const auth = betterAuth({
       enabled: true,
     },
   },
+  trustedOrigins: ["http://localhost:5173", "hikari://hikari.app"],
 });
