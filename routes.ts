@@ -37,7 +37,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     }
     try {
       const result = await conn`
-        SELECT name, image
+        SELECT (name, image)
         FROM user
         WHERE id = ${id};
       `;
@@ -83,7 +83,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const filePath = path.join(uploadDir, fileName);
 
     const existing = await conn`
-      SELECT image FROM user WHERE id = ${user.id}
+      SELECT (image) FROM user WHERE id = ${user.id}
     `;
     const oldPath = existing[0]?.image as string | null;
     if (oldPath) {
