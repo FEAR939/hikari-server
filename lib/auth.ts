@@ -12,4 +12,13 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    defaultCookieAttributes: {
+      secure: true,
+      sameSite: "none",
+    },
+    crossSubDomainCookies: {
+      enabled: true,
+    },
+  },
 });
