@@ -83,7 +83,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const filePath = path.join(uploadDir, fileName);
 
     const existing = await conn`
-      SELECT (image) FROM user WHERE id = ${user.id}
+      SELECT image FROM "user" WHERE id = ${user.id}
     `;
     const oldPath = existing[0]?.image as string | null;
     if (oldPath) {
@@ -98,7 +98,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     await Bun.write(filePath, file);
 
     await conn`
-      UPDATE user
+      UPDATE "user"
       SET image = ${"/uploads/avatars/" + fileName}
       WHERE id = ${user.id}
     `;
