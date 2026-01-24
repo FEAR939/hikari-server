@@ -171,12 +171,12 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     try {
       const lastWatched = await conn`
         WITH latest_per_show AS (
-          SELECT DISTINCT ON (kitsu_id) kitsu_id, episode, created_at
+          SELECT DISTINCT ON (kitsu_id) kitsu_id, episode, leftoff, created_at
           FROM watch_history
           WHERE user_id = ${user.id}
           ORDER BY kitsu_id, created_at DESC
         )
-        SELECT kitsu_id, episode, created_at
+        SELECT kitsu_id, episode, leftoff, created_at
         FROM latest_per_show
         ORDER BY created_at DESC
         LIMIT 30
