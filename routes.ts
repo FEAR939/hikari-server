@@ -249,10 +249,13 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const kitsu_id = body.kitsu_id ?? 0;
     try {
       const bookmarks = await conn`
-      SELECT DISTINCT ON (kitsu_id) kitsu_id, subscribed, notifications
-      FROM user_bookmarks
-      WHERE user_id = ${user.id} ${kitsu_id ? conn`AND kitsu_id = ${kitsu_id}` : conn``}
-      ORDER BY kitsu_id, created_at DESC
+      SELECT * FROM (
+          SELECT DISTINCT ON (kitsu_id) kitsu_id, subscribed, notifications, created_at
+          FROM user_bookmarks
+          WHERE user_id = ${user.id} ${kitsu_id ? conn`AND kitsu_id = ${kitsu_id}` : conn``}
+          ORDER BY kitsu_id, created_at DESC
+      ) sub
+      ORDER BY created_at DESC;
       `;
 
       return c.json(bookmarks);
