@@ -148,7 +148,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     `;
 
     if (leftoff.length === 0) {
-      return c.json({ error: "Not found" }, 404);
+      return c.json({ error: "Not found" }, 200);
     }
 
     const toReturn: any[] = [];
