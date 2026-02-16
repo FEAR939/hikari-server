@@ -27,11 +27,13 @@ async function scheduleNotificationHandler() {
 
 async function createNotification(element, type) {
   if (!db_conn) {
-    throw new Error("Database connection not initialized");
+    console.warn("Database connection not initialized");
+    return;
   }
 
   if (!element.kitsu_id) {
-    throw new Error("Notification Anime did not have a Kitsu ID");
+    console.warn("Notification Anime did not have a Kitsu ID");
+    return;
   }
 
   const targetUsers =
