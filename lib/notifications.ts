@@ -17,7 +17,7 @@ async function scheduleNotificationHandler() {
   console.log("Notification job started");
   const todaySchedule = await get_schedule();
   todaySchedule.forEach(async (episode) => {
-    const timeDelta = episode.airingTime - Date.now();
+    const timeDelta = episode.airingAt - Date.now();
 
     if (timeDelta < 0) {
       const notification = await createNotification(episode, "episode.aired");
