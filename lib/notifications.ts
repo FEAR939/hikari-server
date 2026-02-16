@@ -20,7 +20,7 @@ async function scheduleNotificationHandler() {
     const timeDelta = episode.airingTime - Date.now();
 
     if (timeDelta < 0) {
-      const notification = await createNotification(episode, "episode.airing");
+      const notification = await createNotification(episode, "episode.aired");
     } else {
       setTimeout(() => {
         createNotification(episode, "episode.airing");
