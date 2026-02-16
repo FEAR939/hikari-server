@@ -31,8 +31,6 @@ async function createNotification(element, type) {
     return;
   }
 
-  console.log(element, type);
-
   if (!element.kitsu_id) {
     console.warn("Notification Anime did not have a Kitsu ID");
     return;
