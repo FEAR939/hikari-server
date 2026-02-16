@@ -39,7 +39,7 @@ async function createNotification(element, type) {
   const targetUsers =
     await db_conn`SELECT user_id FROM user_bookmarks WHERE kitsu_id = ${element.kitsu_id}`;
 
-  console.log(targetUsers);
+  console.log(targetUsers, element, type);
 
   if (targetUsers.length === 0) {
     return;
