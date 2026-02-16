@@ -31,6 +31,8 @@ async function createNotification(element, type) {
     return;
   }
 
+  console.log(element, type);
+
   if (!element.kitsu_id) {
     console.warn("Notification Anime did not have a Kitsu ID");
     return;
@@ -38,6 +40,8 @@ async function createNotification(element, type) {
 
   const targetUsers =
     await db_conn`SELECT user_id FROM user_bookmarks WHERE kitsu_id = ${element.kitsu_id}`;
+
+  console.log(targetUsers);
 
   if (targetUsers.length === 0) {
     return;
