@@ -77,3 +77,24 @@ export const SetBookmarkRequestSchema = z.object({
   notifications: z.string().optional().openapi({ example: "false" }),
   remove: z.string().optional().openapi({ example: "false" }),
 });
+
+export const GetNotificationsRequestSchema = z.object({
+  user_id: z.number(),
+});
+
+export const NotificationSchema = z.object({
+  id: z.string().openapi({ example: "uuid" }),
+  user_id: z.string().openapi({ example: "uuid" }),
+  title: z.string().openapi({ example: "Notification Title" }),
+  body: z.string().optional().openapi({ example: "Notification Body" }),
+  type: z.string().openapi({ example: "episode.airing" }),
+  read: z.boolean().openapi({ example: "false" }),
+  created_at: z.string().openapi({ example: "2022-01-01T00:00:00Z" }),
+  kitsu_id: z.string().openapi({ example: "1" }),
+  anilist_id: z.string().openapi({ example: "1" }),
+  episode: z.string().openapi({ example: "1" }),
+});
+
+export const GetNotificationsResponseSchema = z.object({
+  notifications: z.array(NotificationSchema),
+});

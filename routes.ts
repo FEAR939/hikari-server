@@ -264,4 +264,18 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
       return c.json({ error: "Failed to fetch bookmarks" }, 500);
     }
   });
+
+  // Get notifications
+  app.openapi(routes.getNotificationsRoute, async (c) => {
+    const user = c.get("user");
+
+    try {
+      const notifications =
+        await conn`SELECT * FROM notifications WHERE user_id = ${user.id}`;
+      return c.json(notifications);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+      return c.json({ error: "Failed to fetch notifications" }, 500);
+    }
+  });
 }

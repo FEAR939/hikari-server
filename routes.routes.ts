@@ -364,3 +364,38 @@ export const getBookmarksRoute = createRoute({
     },
   },
 });
+
+export const getNotificationsRoute = createRoute({
+  method: "get",
+  path: "/get-notifications",
+  tags: ["Notifications"],
+  summary: "Get user notifications",
+  description: "Returns all notifications for the user",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(schemas.NotificationSchema),
+        },
+      },
+      description: "Notifications retrieved",
+    },
+    401: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Unauthorized",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Server error",
+    },
+  },
+});
