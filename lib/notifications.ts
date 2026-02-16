@@ -9,10 +9,12 @@ export function createNotificationHandler(db_connection) {
 }
 
 function scheduleNotificationScheduler() {
+  scheduleNotificationHandler();
   setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
 }
 
 async function scheduleNotificationHandler() {
+  console.log("Notification job started");
   const todaySchedule = await get_schedule();
   todaySchedule.forEach(async (episode) => {
     const notification = await createNotification(
