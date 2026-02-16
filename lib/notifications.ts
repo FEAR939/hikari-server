@@ -31,7 +31,7 @@ async function createNotification(element, type) {
     return;
   }
 
-  if (!element.kitsu_id) {
+  if (!element.kitsuId) {
     console.warn("Notification Anime did not have a Kitsu ID");
     return;
   }
@@ -46,7 +46,7 @@ async function createNotification(element, type) {
   }
 
   targetUsers.forEach(async (user) => {
-    const notification_title = `Anime ${element.kitsu_id} Episode ${element.episode} just aired`;
-    await db_conn`INSERT INTO notifications (user_id, title, type, kitsu_id, anilist_id, episode_number) VALUES (${user.user_id}, ${notification_title}, ${type}, ${element.kitsu_id}, ${element.media.id}, ${element.episode})`;
+    const notification_title = `Anime ${element.kitsuId} Episode ${element.episode} just aired`;
+    await db_conn`INSERT INTO notifications (user_id, title, type, kitsu_id, anilist_id, episode_number) VALUES (${user.user_id}, ${notification_title}, ${type}, ${element.kitsuId}, ${element.media.id}, ${element.episode})`;
   });
 }
