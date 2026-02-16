@@ -17,10 +17,7 @@ async function scheduleNotificationHandler() {
   console.log("Notification job started");
   const todaySchedule = await get_schedule();
   todaySchedule.forEach(async (episode) => {
-    const notification = await createNotification(
-      episode,
-      (type = "episode.airing"),
-    );
+    const notification = await createNotification(episode, "episode.airing");
   });
   console.log(
     "Notification job finished, will run again at ",
