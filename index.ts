@@ -7,6 +7,7 @@ import registerAuthRoutes from "./auth";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { auth } from "./lib/auth";
+import { createNotificationHandler } from "./lib/notifications";
 
 const SERVER_PORT = process.env.SERVER_PORT;
 const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH;
@@ -77,6 +78,8 @@ async function main() {
 
   registerRoutes(app, conn);
   //registerAuthRoutes(app, conn);
+
+  createNotificationHandler(conn);
 
   // Add OpenAPI spec endpoint
   app.doc("/openapi.json", {
