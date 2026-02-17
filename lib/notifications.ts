@@ -16,9 +16,6 @@ function getMillisUntilMidnight() {
 }
 
 function scheduleNotificationScheduler() {
-  // Run immediately on startup
-  scheduleNotificationHandler();
-
   // Schedule next run at midnight, then every 24h after that
   setTimeout(() => {
     scheduleNotificationHandler();
