@@ -1,35 +1,57 @@
 import { get_schedule } from "./schedule";
 
 let db_conn;
+let scheduledTimeouts = [];
 
 export function createNotificationHandler(db_connection) {
   db_conn = db_connection;
-
   scheduleNotificationScheduler();
 }
 
+function getMillisUntilMidnight() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight - now;
+}
+
 function scheduleNotificationScheduler() {
+  // Run immediately on startup
   scheduleNotificationHandler();
-  setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
+
+  // Schedule next run at midnight, then every 24h after that
+  setTimeout(() => {
+    scheduleNotificationHandler();
+    setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
+  }, getMillisUntilMidnight());
 }
 
 async function scheduleNotificationHandler() {
+  // Clear any leftover timeouts from the previous day
+  for (const id of scheduledTimeouts) {
+    clearTimeout(id);
+  }
+  scheduledTimeouts = [];
+
   console.log("Notification job started");
   const todaySchedule = await get_schedule();
-  todaySchedule.forEach(async (episode) => {
+
+  for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
 
-    if (timeDelta < 0) {
-      const notification = await createNotification(episode, "episode.aired");
+    if (timeDelta <= 0) {
+      await createNotification(episode, "episode.aired");
     } else {
-      setTimeout(() => {
-        createNotification(episode, "episode.airing");
+      const timeoutId = setTimeout(() => {
+        createNotification(episode, "episode.aired");
       }, timeDelta);
+      scheduledTimeouts.push(timeoutId);
     }
-  });
+  }
+
+  const nextRun = new Date(Date.now() + getMillisUntilMidnight());
   console.log(
-    "Notification job finished, will run again at ",
-    new Date(Date.now() + 24 * 60 * 60 * 1000),
+    `Notification job finished, next run at ${nextRun.toISOString()}`,
   );
 }
 
@@ -45,14 +67,21 @@ async function createNotification(element, type) {
   }
 
   const targetUsers =
-    await db_conn`SELECT user_id FROM user_bookmarks WHERE kitsu_id = ${element.kitsuId}`;
+    await db_conn`SELECT user_id FROM user_bookmarks WHERE kitsu_id = ${element.kitsuId} AND subscribed = true`;
 
   if (targetUsers.length === 0) {
     return;
   }
 
-  targetUsers.forEach(async (user) => {
-    const notification_title = `Anime ${element.kitsuId} Episode ${element.episode} just aired`;
-    await db_conn`INSERT INTO notifications (user_id, title, type, kitsu_id, anilist_id, episode_number) VALUES (${user.user_id}, ${notification_title}, ${type}, ${element.kitsuId}, ${element.media.id}, ${element.episode})`;
-  });
+  // Batch insert all notifications in a single query
+  const rows = targetUsers.map((user) => ({
+    user_id: user.user_id,
+    title: `Anime ${element.kitsuId} Episode ${element.episode} just aired`,
+    type,
+    kitsu_id: element.kitsuId,
+    anilist_id: element.media.id,
+    episode_number: element.episode,
+  }));
+
+  await db_conn`INSERT INTO notifications ${db_conn(rows, "user_id", "title", "type", "kitsu_id", "anilist_id", "episode_number")}`;
 }
