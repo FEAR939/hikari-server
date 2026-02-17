@@ -16,6 +16,11 @@ function getMillisUntilMidnight() {
 }
 
 function scheduleNotificationScheduler() {
+  const nextRun = new Date(Date.now() + getMillisUntilMidnight());
+  console.log(
+    `The first Notification job will run at ${nextRun.toISOString()}`,
+  );
+
   // Schedule next run at midnight, then every 24h after that
   setTimeout(() => {
     scheduleNotificationHandler();
