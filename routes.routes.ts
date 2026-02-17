@@ -366,7 +366,7 @@ export const getBookmarksRoute = createRoute({
 });
 
 export const getNotificationsRoute = createRoute({
-  method: "get",
+  method: "post",
   path: "/get-notifications",
   tags: ["Notifications"],
   summary: "Get user notifications",
