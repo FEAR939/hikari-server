@@ -36,8 +36,8 @@ const AIRING_SCHEDULE_QUERY = `
 
 export async function fetchDailyAiringSchedule() {
   const now = new Date();
-  // const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfDay = new Date("2026-02-15");
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // const startOfDay = new Date("2026-02-15");
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
   const start = Math.floor(startOfDay.getTime() / 1000);
