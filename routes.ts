@@ -271,7 +271,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
 
     try {
       const notifications =
-        await conn`SELECT * FROM notifications WHERE user_id = ${user.id}`;
+        await conn`SELECT * FROM notifications WHERE user_id = ${user.id} ORDER BY created_at DESC`;
       return c.json(notifications);
     } catch (err) {
       console.error("Error fetching notifications:", err);
