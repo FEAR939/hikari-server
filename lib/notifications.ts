@@ -21,6 +21,8 @@ function scheduleNotificationScheduler() {
     `The first Notification job will run at ${nextRun.toISOString()}`,
   );
 
+  scheduleNotificationHandler();
+
   // Schedule next run at midnight, then every 24h after that
   setTimeout(() => {
     scheduleNotificationHandler();
