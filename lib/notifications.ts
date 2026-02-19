@@ -16,12 +16,12 @@ function getMillisUntilMidnight() {
 }
 
 function scheduleNotificationScheduler() {
-  const nextRun = new Date(Date.now() + getMillisUntilMidnight());
+  const nextRun = new Date(
+    Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
+  ); // + 5 minutes as a safety margin
   console.log(
     `The first Notification job will run at ${nextRun.toISOString()}`,
   );
-
-  scheduleNotificationHandler();
 
   // Schedule next run at midnight, then every 24h after that
   setTimeout(() => {
@@ -53,7 +53,9 @@ async function scheduleNotificationHandler() {
     }
   }
 
-  const nextRun = new Date(Date.now() + getMillisUntilMidnight());
+  const nextRun = new Date(
+    Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
+  ); // + 5 minutes as a safety margin
   console.log(
     `Notification job finished, next run at ${nextRun.toISOString()}`,
   );
