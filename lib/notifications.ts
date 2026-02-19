@@ -51,6 +51,10 @@ async function scheduleNotificationHandler() {
       }, timeDelta);
       scheduledTimeouts.push(timeoutId);
     }
+
+    console.log(
+      `Scheduled notification for ${new Date(episode.airingAt).toISOString()}`,
+    );
   }
 
   const nextRun = new Date(
