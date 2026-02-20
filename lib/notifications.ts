@@ -22,7 +22,6 @@ function scheduleNotificationScheduler() {
       "--run-now flag detected. Running notification handler immediately.",
     );
     scheduleNotificationHandler();
-    return;
   }
 
   const nextRun = new Date(
@@ -54,6 +53,7 @@ async function scheduleNotificationHandler() {
 
   for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
+    console.log(`Time delta for episode ${episode.id}: ${timeDelta}ms`);
 
     if (timeDelta <= 0) {
       await createNotification(episode, "episode.aired");
