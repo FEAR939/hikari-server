@@ -53,7 +53,6 @@ async function scheduleNotificationHandler() {
 
   for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
-    console.log(`Time delta for episode ${episode.media.id}: ${timeDelta}ms`);
 
     if (timeDelta <= 0) {
       await createNotification(episode, "episode.aired");
