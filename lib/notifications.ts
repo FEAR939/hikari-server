@@ -24,10 +24,13 @@ function scheduleNotificationScheduler() {
   );
 
   // Schedule next run at midnight, then every 24h after that
-  setTimeout(() => {
-    scheduleNotificationHandler();
-    setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
-  }, getMillisUntilMidnight());
+  setTimeout(
+    () => {
+      scheduleNotificationHandler();
+      setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
+    },
+    getMillisUntilMidnight() + 5 * 60 * 1000,
+  ); // + 5 minutes as a safety margin
 }
 
 async function scheduleNotificationHandler() {
