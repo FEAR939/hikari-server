@@ -1,4 +1,5 @@
 import { get_schedule } from "./schedule";
+import process from "process";
 
 let db_conn;
 let scheduledTimeouts = [];
@@ -16,6 +17,14 @@ function getMillisUntilMidnight() {
 }
 
 function scheduleNotificationScheduler() {
+  if (process.argv.includes("--run-now")) {
+    console.log(
+      "--run-now flag detected. Running notification handler immediately.",
+    );
+    scheduleNotificationHandler();
+    return;
+  }
+
   const nextRun = new Date(
     Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
   ); // + 5 minutes as a safety margin
