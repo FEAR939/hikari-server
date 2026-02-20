@@ -53,7 +53,7 @@ async function scheduleNotificationHandler() {
 
   for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
-    console.log(`Time delta for episode ${episode.id}: ${timeDelta}ms`);
+    console.log(`Time delta for episode ${episode.media.id}: ${timeDelta}ms`);
 
     if (timeDelta <= 0) {
       await createNotification(episode, "episode.aired");
@@ -84,7 +84,10 @@ async function createNotification(element, type) {
   }
 
   if (!element.kitsuId) {
-    console.warn("Notification Anime did not have a Kitsu ID");
+    console.warn(
+      "Notification Anime did not have a Kitsu ID, anilist ID = ",
+      element.media.id,
+    );
     return;
   }
 
