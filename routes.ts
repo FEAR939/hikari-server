@@ -316,6 +316,45 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     }
   });
 
+  // GET /notifications/new?since=2025-01-15T10:30:00.000Z
+  app.openapi(routes.getNewNotificationsRoute, async (c) => {
+    const user = c.get("user");
+    const since = c.req.query("since");
+    const syncedAt = new Date().toISOString();
+
+    try {
+      let notifications;
+
+      if (since) {
+        notifications = await conn`
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                    AND created_at > ${since}::timestamptz
+                  ORDER BY created_at DESC
+              `;
+      } else {
+        // First load — get recent batch
+        notifications = await conn`
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                  ORDER BY created_at DESC
+                  LIMIT 20
+              `;
+      }
+
+      return c.json(
+        {
+          notifications,
+          syncedAt,
+        },
+        200 as const,
+      );
+    } catch (err) {
+      console.error("Error fetching new notifications:", err);
+      return c.json({ error: "Failed to fetch notifications" }, 500 as const);
+    }
+  });
+
   // Mark Notifications as read
   app.openapi(routes.markNotificationsReadRoute, async (c) => {
     const user = c.get("user");

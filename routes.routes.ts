@@ -366,20 +366,74 @@ export const getBookmarksRoute = createRoute({
 });
 
 export const getNotificationsRoute = createRoute({
-  method: "post",
-  path: "/get-notifications",
+  method: "get",
+  path: "/notifications",
   tags: ["Notifications"],
-  summary: "Get user notifications",
-  description: "Returns all notifications for the user",
+  summary: "Get notifications with pagination",
+  description:
+    "Fetches notifications with cursor-based pagination for infinite scroll",
   security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      limit: z.string().regex(/^\d+$/).transform(Number).optional(),
+      cursor: z.string().optional(),
+    }),
+  },
   responses: {
     200: {
       content: {
         "application/json": {
-          schema: z.array(schemas.NotificationSchema),
+          schema: z.object({
+            notifications: z.array(schemas.NotificationSchema),
+            nextCursor: z.string().nullable(),
+            syncedAt: z.iso.datetime(),
+          }),
         },
       },
-      description: "Notifications retrieved",
+      description: "Paginated notifications",
+    },
+    401: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Unauthorized",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Server error",
+    },
+  },
+});
+
+export const getNewNotificationsRoute = createRoute({
+  method: "get",
+  path: "/notifications/new",
+  tags: ["Notifications"],
+  summary: "Poll for new notifications",
+  description: "Fetches notifications newer than the given sync point",
+  security: [{ bearerAuth: [] }],
+  request: {
+    query: z.object({
+      since: z.iso.datetime().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            notifications: z.array(schemas.NotificationSchema),
+            syncedAt: z.iso.datetime(),
+          }),
+        },
+      },
+      description: "New notifications since the sync point",
     },
     401: {
       content: {
