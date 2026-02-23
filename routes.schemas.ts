@@ -19,6 +19,10 @@ export const HealthSchema = z.object({
   status: z.string(),
 });
 
+export const SuccessSchema = z.object({
+  message: z.string(),
+});
+
 export const ErrorSchema = z.object({
   error: z.string(),
 });
@@ -97,4 +101,8 @@ export const NotificationSchema = z.object({
 
 export const GetNotificationsResponseSchema = z.object({
   notifications: z.array(NotificationSchema),
+});
+
+export const MarkNotificationsReadRequestSchema = z.object({
+  lastsync: z.date().openapi({ example: "2022-01-01T00:00:00Z" }),
 });

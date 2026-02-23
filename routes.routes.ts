@@ -399,3 +399,56 @@ export const getNotificationsRoute = createRoute({
     },
   },
 });
+
+export const markNotificationsReadRoute = createRoute({
+  method: "post",
+  path: "/mark-notifications-read",
+  tags: ["Notifications"],
+  summary: "Mark notifications as read",
+  description:
+    "Marks all notifications up to the last sync point as read for the user",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/x-www-form-urlencoded": {
+          schema: schemas.MarkNotificationsReadRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: schemas.SuccessSchema,
+        },
+      },
+      description: "Notifications marked as read",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Bad request",
+    },
+    401: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Unauthorized",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: schemas.ErrorSchema,
+        },
+      },
+      description: "Server error",
+    },
+  },
+});

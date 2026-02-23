@@ -278,4 +278,23 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
       return c.json({ error: "Failed to fetch notifications" }, 500);
     }
   });
+
+  // Mark Notifications as read
+  app.openapi(routes.markNotificationsReadRoute, async (c) => {
+    const user = c.get("user");
+    const body = await c.req.parseBody();
+    const lastsync = body.lastsync;
+
+    if (!lastsync) {
+      return c.json({ error: "Missing lastsync parameter" }, 400);
+    }
+
+    try {
+      await conn`UPDATE notifications SET read = true WHERE user_id = ${user.id} AND created_at > ${lastsync}`;
+      return c.json({ message: "Notifications marked as read" });
+    } catch (err) {
+      console.error("Error marking notifications as read:", err);
+      return c.json({ error: "Failed to mark notifications as read" }, 500);
+    }
+  });
 }
