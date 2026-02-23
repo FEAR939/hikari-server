@@ -268,14 +268,51 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   // Get notifications
   app.openapi(routes.getNotificationsRoute, async (c) => {
     const user = c.get("user");
+    const limit = Number(c.req.query("limit") ?? 20);
+    const cursor = c.req.query("cursor"); // format: "timestamp_uuid"
 
     try {
-      const notifications =
-        await conn`SELECT * FROM notifications WHERE user_id = ${user.id} ORDER BY created_at DESC`;
-      return c.json(notifications);
+      let notifications;
+
+      if (cursor) {
+        const [cursorTimestamp, cursorId] = cursor.split("_");
+
+        notifications = await conn`
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                    AND (created_at, id) < (${cursorTimestamp}::timestamptz, ${cursorId}::uuid)
+                  ORDER BY created_at DESC, id DESC
+                  LIMIT ${limit + 1}
+              `;
+      } else {
+        notifications = await conn`
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                  ORDER BY created_at DESC, id DESC
+                  LIMIT ${limit + 1}
+              `;
+      }
+
+      // If we got more than `limit`, there are more pages
+      const hasMore = notifications.length > limit;
+      if (hasMore) notifications.pop();
+
+      // Build the next cursor from the last item
+      const nextCursor = hasMore
+        ? `${notifications[notifications.length - 1].created_at.toISOString()}_${notifications[notifications.length - 1].id}`
+        : null;
+
+      return c.json(
+        {
+          notifications,
+          nextCursor,
+          syncedAt: new Date().toISOString(),
+        },
+        200 as const,
+      );
     } catch (err) {
       console.error("Error fetching notifications:", err);
-      return c.json({ error: "Failed to fetch notifications" }, 500);
+      return c.json({ error: "Failed to fetch notifications" }, 500 as const);
     }
   });
 
