@@ -411,7 +411,7 @@ export const markNotificationsReadRoute = createRoute({
   request: {
     body: {
       content: {
-        "application/x-www-form-urlencoded": {
+        "multipart/form-data": {
           schema: schemas.MarkNotificationsReadRequestSchema,
         },
       },
