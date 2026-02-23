@@ -104,5 +104,5 @@ export const GetNotificationsResponseSchema = z.object({
 });
 
 export const MarkNotificationsReadRequestSchema = z.object({
-  lastsync: z.date().openapi({ example: "2022-01-01T00:00:00Z" }),
+  lastsync: z.string().openapi({ example: "2022-01-01T00:00:00Z" }),
 });
