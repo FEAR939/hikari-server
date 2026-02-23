@@ -284,14 +284,18 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const user = c.get("user");
     const body = await c.req.parseBody();
     const lastsync = body.lastsync;
-
     if (!lastsync) {
       return c.json({ error: "Missing lastsync parameter" }, 400);
     }
-
     try {
-      await conn`UPDATE notifications SET read = true WHERE user_id = ${user.id} AND created_at > ${lastsync}`;
-      return c.json({ message: "Notifications marked as read" });
+      await conn`
+          UPDATE notifications
+          SET "read" = true
+          WHERE user_id = ${user.id}
+            AND created_at <= ${lastsync}
+            AND "read" = false
+        `;
+      return c.json({ message: "Notifications marked as read" }, 200);
     } catch (err) {
       console.error("Error marking notifications as read:", err);
       return c.json({ error: "Failed to mark notifications as read" }, 500);
