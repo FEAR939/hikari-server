@@ -289,12 +289,7 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     }
     try {
       await conn`
-          UPDATE notifications
-          SET "read" = true
-          WHERE user_id = ${user.id}
-            AND created_at <= ${lastsync}
-            AND "read" = false
-        `;
+          UPDATE notifications SET "read" = true WHERE user_id = ${user.id} AND created_at <= ${lastsync} AND "read" = false`;
       return c.json({ message: "Notifications marked as read" }, 200);
     } catch (err) {
       console.error("Error marking notifications as read:", err);
