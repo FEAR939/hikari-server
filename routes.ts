@@ -283,52 +283,30 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
         const cursorTimestamp = cursor.substring(0, separatorIndex);
         const cursorId = cursor.substring(separatorIndex + 1);
 
-        console.log("cursorTimestamp:", cursorTimestamp);
-        console.log("cursorId:", cursorId);
-
-        // Check: how many rows exist BEFORE this cursor?
-        const countFiltered = await conn`
-              SELECT count(*) FROM notifications
-              WHERE user_id = ${user.id}
-                AND (created_at < ${cursorTimestamp}::timestamptz
-                     OR (created_at = ${cursorTimestamp}::timestamptz AND id < ${cursorId}::uuid))
-          `;
-        console.log("Rows before cursor:", countFiltered[0].count);
-
-        // Check: what does the UNFILTERED query return?
-        const allIds = await conn`
-              SELECT id FROM notifications
-              WHERE user_id = ${user.id}
-              ORDER BY created_at DESC, id DESC
-          `;
-        console.log(
-          "All IDs in order:",
-          allIds.map((n) => n.id),
-        );
-
         notifications = await conn`
-              SELECT *, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_ts
-              FROM notifications
+              SELECT * FROM notifications
               WHERE user_id = ${user.id}
                 AND (created_at < ${cursorTimestamp}::timestamptz
                      OR (created_at = ${cursorTimestamp}::timestamptz AND id < ${cursorId}::uuid))
               ORDER BY created_at DESC, id DESC
               LIMIT ${limit + 1}
           `;
-
-        console.log("Filtered results:", notifications.length);
-        console.log(
-          "Filtered IDs:",
-          notifications.map((n) => n.id),
-        );
+      } else {
+        notifications = await conn`
+              SELECT * FROM notifications
+              WHERE user_id = ${user.id}
+              ORDER BY created_at DESC, id DESC
+              LIMIT ${limit + 1}
+          `;
       }
 
       const hasMore = notifications.length > limit;
       if (hasMore) notifications.pop();
 
-      // Use the full-precision timestamp for the cursor
+      // Build cursor from the raw created_at — let your SQL driver handle precision
+      const lastItem = notifications[notifications.length - 1];
       const nextCursor = hasMore
-        ? `${notifications[notifications.length - 1].cursor_ts}_${notifications[notifications.length - 1].id}`
+        ? `${lastItem.created_at instanceof Date ? lastItem.created_at.toISOString() : lastItem.created_at}_${lastItem.id}`
         : null;
 
       return c.json(
