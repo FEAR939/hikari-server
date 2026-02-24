@@ -269,44 +269,36 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
   app.openapi(routes.getNotificationsRoute, async (c) => {
     const user = c.get("user");
     const limit = Number(c.req.query("limit") ?? 20);
-    const cursor = c.req.query("cursor"); // format: "timestamp_uuid"
-
-    console.log("=== GET /notifications ===");
-    console.log("cursor param:", cursor);
-    console.log("limit param:", limit);
+    const cursor = c.req.query("cursor"); // just a UUID now
 
     try {
       let notifications;
 
       if (cursor) {
-        const separatorIndex = cursor.indexOf("_");
-        const cursorTimestamp = cursor.substring(0, separatorIndex);
-        const cursorId = cursor.substring(separatorIndex + 1);
-
+        // Get the created_at of the cursor notification
         notifications = await conn`
-              SELECT * FROM notifications
-              WHERE user_id = ${user.id}
-                AND (created_at < ${cursorTimestamp}::timestamptz
-                     OR (created_at = ${cursorTimestamp}::timestamptz AND id < ${cursorId}::uuid))
-              ORDER BY created_at DESC, id DESC
-              LIMIT ${limit + 1}
-          `;
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                    AND (created_at, id) < (
+                        SELECT created_at, id FROM notifications WHERE id = ${cursor}::uuid
+                    )
+                  ORDER BY created_at DESC, id DESC
+                  LIMIT ${limit + 1}
+              `;
       } else {
         notifications = await conn`
-              SELECT * FROM notifications
-              WHERE user_id = ${user.id}
-              ORDER BY created_at DESC, id DESC
-              LIMIT ${limit + 1}
-          `;
+                  SELECT * FROM notifications
+                  WHERE user_id = ${user.id}
+                  ORDER BY created_at DESC, id DESC
+                  LIMIT ${limit + 1}
+              `;
       }
 
       const hasMore = notifications.length > limit;
       if (hasMore) notifications.pop();
 
-      // Build cursor from the raw created_at — let your SQL driver handle precision
-      const lastItem = notifications[notifications.length - 1];
       const nextCursor = hasMore
-        ? `${lastItem.created_at instanceof Date ? lastItem.created_at.toISOString() : lastItem.created_at}_${lastItem.id}`
+        ? notifications[notifications.length - 1].id
         : null;
 
       return c.json(
