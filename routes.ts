@@ -271,6 +271,10 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
     const limit = Number(c.req.query("limit") ?? 20);
     const cursor = c.req.query("cursor"); // format: "timestamp_uuid"
 
+    console.log("=== GET /notifications ===");
+    console.log("cursor param:", cursor);
+    console.log("limit param:", limit);
+
     try {
       let notifications;
 
