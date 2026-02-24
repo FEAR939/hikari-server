@@ -280,7 +280,8 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
         const cursorId = cursor.substring(separatorIndex + 1);
 
         notifications = await conn`
-              SELECT * FROM notifications
+              SELECT *, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_ts
+              FROM notifications
               WHERE user_id = ${user.id}
                 AND (created_at < ${cursorTimestamp}::timestamptz
                      OR (created_at = ${cursorTimestamp}::timestamptz AND id < ${cursorId}::uuid))
@@ -289,20 +290,20 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
           `;
       } else {
         notifications = await conn`
-                  SELECT * FROM notifications
-                  WHERE user_id = ${user.id}
-                  ORDER BY created_at DESC, id DESC
-                  LIMIT ${limit + 1}
-              `;
+              SELECT *, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_ts
+              FROM notifications
+              WHERE user_id = ${user.id}
+              ORDER BY created_at DESC, id DESC
+              LIMIT ${limit + 1}
+          `;
       }
 
-      // If we got more than `limit`, there are more pages
       const hasMore = notifications.length > limit;
       if (hasMore) notifications.pop();
 
-      // Build the next cursor from the last item
+      // Use the full-precision timestamp for the cursor
       const nextCursor = hasMore
-        ? `${notifications[notifications.length - 1].created_at.toISOString()}_${notifications[notifications.length - 1].id}`
+        ? `${notifications[notifications.length - 1].cursor_ts}_${notifications[notifications.length - 1].id}`
         : null;
 
       return c.json(
