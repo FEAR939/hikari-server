@@ -275,15 +275,17 @@ export default function registerRoutes(app: OpenAPIHono, conn: SQL) {
       let notifications;
 
       if (cursor) {
-        const [cursorTimestamp, cursorId] = cursor.split("_");
+        const separatorIndex = cursor.indexOf("_");
+        const cursorTimestamp = cursor.substring(0, separatorIndex);
+        const cursorId = cursor.substring(separatorIndex + 1);
 
         notifications = await conn`
-                  SELECT * FROM notifications
-                  WHERE user_id = ${user.id}
-                    AND (created_at, id) < (${cursorTimestamp}::timestamptz, ${cursorId}::uuid)
-                  ORDER BY created_at DESC, id DESC
-                  LIMIT ${limit + 1}
-              `;
+                SELECT * FROM notifications
+                WHERE user_id = ${user.id}
+                  AND (created_at, id) < (${cursorTimestamp}::timestamptz, ${cursorId}::uuid)
+                ORDER BY created_at DESC, id DESC
+                LIMIT ${limit + 1}
+            `;
       } else {
         notifications = await conn`
                   SELECT * FROM notifications
