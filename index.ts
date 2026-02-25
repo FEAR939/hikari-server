@@ -29,7 +29,12 @@ app.use(
     credentials: true,
   }),
 );
-app.use("*", logger());
+
+export const customLogger = (message: string, ...rest: string[]) => {
+  console.log(`[${new Date().toISOString()}] | ${message}`, ...rest);
+};
+
+app.use("*", logger(customLogger));
 app.use("*", async (c, next) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
