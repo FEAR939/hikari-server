@@ -19,7 +19,7 @@ function getMillisUntilMidnight() {
 function scheduleNotificationScheduler() {
   if (process.argv.includes("--run-now")) {
     console.log(
-      "--run-now flag detected. Running notification handler immediately.",
+      `${new Date().toISOString()} | --run-now flag detected. Running notification handler immediately.`,
     );
     scheduleNotificationHandler();
   }
@@ -28,7 +28,7 @@ function scheduleNotificationScheduler() {
     Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
   ); // + 5 minutes as a safety margin
   console.log(
-    `The first Notification job will run at ${nextRun.toISOString()}`,
+    `${new Date().toISOString()} | The first Notification job will run at ${nextRun.toISOString()}`,
   );
 
   // Schedule next run at midnight, then every 24h after that
@@ -48,7 +48,7 @@ async function scheduleNotificationHandler() {
   }
   scheduledTimeouts = [];
 
-  console.log("Notification job started");
+  console.log(`${new Date().toISOString()} | Notification job started`);
   const todaySchedule = await get_schedule();
 
   for (const episode of todaySchedule) {
@@ -63,7 +63,7 @@ async function scheduleNotificationHandler() {
       scheduledTimeouts.push(timeoutId);
 
       console.log(
-        `Scheduled notification for ${new Date(episode.airingAt).toISOString()}`,
+        `${new Date().toISOString()} | Scheduled notification for ${new Date(episode.airingAt).toISOString()}`,
       );
     }
   }
@@ -72,20 +72,21 @@ async function scheduleNotificationHandler() {
     Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
   ); // + 5 minutes as a safety margin
   console.log(
-    `Notification job finished, next run at ${nextRun.toISOString()}`,
+    `${new Date().toISOString()} | Notification job finished, next run at ${nextRun.toISOString()}`,
   );
 }
 
 async function createNotification(element, type) {
   if (!db_conn) {
-    console.warn("Database connection not initialized");
+    console.warn(
+      `${new Date().toISOString()} | Database connection not initialized`,
+    );
     return;
   }
 
   if (!element.kitsuId) {
     console.warn(
-      "Notification Anime did not have a Kitsu ID, anilist ID = ",
-      element.media.id,
+      `${new Date().toISOString()} | Notification Anime did not have a Kitsu ID, anilist ID = ${element.media.id}`,
     );
     return;
   }
