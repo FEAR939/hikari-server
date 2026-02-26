@@ -9,11 +9,12 @@ export function createNotificationHandler(db_connection) {
   scheduleNotificationScheduler();
 }
 
-function getMillisUntilMidnight() {
+function getMillisUntilUTCMidnight() {
   const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return midnight - now;
+  const nextUTCMidnight = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+  );
+  return nextUTCMidnight - now;
 }
 
 function scheduleNotificationScheduler() {
@@ -24,21 +25,17 @@ function scheduleNotificationScheduler() {
     scheduleNotificationHandler();
   }
 
-  const nextRun = new Date(
-    Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
-  ); // + 5 minutes as a safety margin
+  const millisUntilMidnight = getMillisUntilUTCMidnight();
+  const nextRun = new Date(Date.now() + millisUntilMidnight);
   console.log(
     `${new Date().toISOString()} | The first Notification job will run at ${nextRun.toISOString()}`,
   );
 
   // Schedule next run at midnight, then every 24h after that
-  setTimeout(
-    () => {
-      scheduleNotificationHandler();
-      setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
-    },
-    getMillisUntilMidnight() + 5 * 60 * 1000,
-  ); // + 5 minutes as a safety margin
+  setTimeout(() => {
+    scheduleNotificationHandler();
+    setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
+  }, millisUntilMidnight);
 }
 
 async function scheduleNotificationHandler() {
@@ -68,9 +65,7 @@ async function scheduleNotificationHandler() {
     }
   }
 
-  const nextRun = new Date(
-    Date.now() + getMillisUntilMidnight() + 5 * 60 * 1000,
-  ); // + 5 minutes as a safety margin
+  const nextRun = new Date(Date.now() + getMillisUntilUTCMidnight());
   console.log(
     `${new Date().toISOString()} | Notification job finished, next run at ${nextRun.toISOString()}`,
   );

@@ -2,7 +2,7 @@ export async function get_schedule() {
   let todaySchedule = await fetchDailyAiringSchedule();
   todaySchedule = await Promise.all(
     todaySchedule.map(async (episode) => {
-      episode.airingAt = episode.airingAt;
+      episode.airingAt = episode.airingAt * 1000;
       episode.kitsuId = await anilistToKitsuID(episode.media.id);
       return episode;
     }),
@@ -36,8 +36,9 @@ const AIRING_SCHEDULE_QUERY = `
 
 export async function fetchDailyAiringSchedule() {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  // const startOfDay = new Date("2026-02-15");
+  const startOfDay = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
   const start = Math.floor(startOfDay.getTime() / 1000);
