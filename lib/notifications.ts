@@ -35,7 +35,7 @@ function scheduleNotificationScheduler() {
   setTimeout(() => {
     scheduleNotificationHandler();
     setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
-  }, millisUntilMidnight);
+  }, millisUntilMidnight + 500);
 }
 
 async function scheduleNotificationHandler() {
