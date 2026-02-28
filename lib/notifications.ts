@@ -25,32 +25,35 @@ function scheduleNotificationScheduler() {
     scheduleNotificationHandler();
   }
 
+  scheduleNextRun();
+}
+
+function scheduleNextRun() {
   const millisUntilMidnight = getMillisUntilUTCMidnight();
   const nextRun = new Date(Date.now() + millisUntilMidnight);
   console.log(
-    `${new Date().toISOString()} | The first Notification job will run at ${nextRun.toISOString()}`,
+    `${new Date().toISOString()} | Next notification job will run at ${nextRun.toISOString()}`,
   );
 
-  // Schedule next run at midnight, then every 24h after that
+  // ✅ Reschedules every day instead of using setInterval, preventing drift
   setTimeout(() => {
     scheduleNotificationHandler();
-    setInterval(scheduleNotificationHandler, 24 * 60 * 60 * 1000);
-  }, millisUntilMidnight + 500);
+    scheduleNextRun();
+  }, millisUntilMidnight + 5000); // 5 second buffer to ensure we're past midnight
 }
 
 async function scheduleNotificationHandler() {
-  // Clear any leftover timeouts from the previous day
   for (const id of scheduledTimeouts) {
     clearTimeout(id);
   }
   scheduledTimeouts = [];
 
   console.log(`${new Date().toISOString()} | Notification job started`);
+
   const todaySchedule = await get_schedule();
 
   for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
-
     if (timeDelta <= 0) {
       await createNotification(episode, "episode.aired");
     } else {
@@ -58,16 +61,14 @@ async function scheduleNotificationHandler() {
         createNotification(episode, "episode.aired");
       }, timeDelta);
       scheduledTimeouts.push(timeoutId);
-
       console.log(
         `${new Date().toISOString()} | Scheduled notification for ${new Date(episode.airingAt).toISOString()}`,
       );
     }
   }
 
-  const nextRun = new Date(Date.now() + getMillisUntilUTCMidnight());
   console.log(
-    `${new Date().toISOString()} | Notification job finished, next run at ${nextRun.toISOString()}`,
+    `${new Date().toISOString()} | Notification job finished, next run at ${new Date(Date.now() + getMillisUntilUTCMidnight()).toISOString()}`,
   );
 }
 
@@ -78,7 +79,6 @@ async function createNotification(element, type) {
     );
     return;
   }
-
   if (!element.kitsuId) {
     console.warn(
       `${new Date().toISOString()} | Notification Anime did not have a Kitsu ID, anilist ID = ${element.media.id}`,
@@ -93,7 +93,6 @@ async function createNotification(element, type) {
     return;
   }
 
-  // Batch insert all notifications in a single query
   const rows = targetUsers.map((user) => ({
     user_id: user.user_id,
     title: `Anime ${element.kitsuId} Episode ${element.episode} just aired`,
