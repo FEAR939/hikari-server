@@ -56,7 +56,6 @@ async function scheduleNotificationHandler() {
     title: episode.media.title.english || episode.media.title.romaji,
     episode: episode.episode,
     airingAt: new Date(episode.airingAt).toISOString(),
-    type: episode.type,
   }));
 
   console.table(todayScheduleTable);
@@ -77,7 +76,7 @@ async function scheduleNotificationHandler() {
   }
 
   console.log(
-    `${new Date().toISOString()} | Notification job finished, next run at ${new Date(Date.now() + getMillisUntilUTCMidnight()).toISOString()}`,
+    `${new Date().toISOString()} | Notification job finished, next run at ${new Date(Date.now() + getMillisUntilUTCMidnight() + 5000).toISOString()}`,
   );
 }
 
