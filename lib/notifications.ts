@@ -30,7 +30,7 @@ function scheduleNotificationScheduler() {
 
 function scheduleNextRun() {
   const millisUntilMidnight = getMillisUntilUTCMidnight();
-  const nextRun = new Date(Date.now() + millisUntilMidnight);
+  const nextRun = new Date(Date.now() + millisUntilMidnight + 5000);
   console.log(
     `${new Date().toISOString()} | Next notification job will run at ${nextRun.toISOString()}`,
   );
@@ -51,6 +51,15 @@ async function scheduleNotificationHandler() {
   console.log(`${new Date().toISOString()} | Notification job started`);
 
   const todaySchedule = await get_schedule();
+
+  const todayScheduleTable = todaySchedule.map((episode) => ({
+    title: episode.media.title.english || episode.media.title.romaji,
+    episode: episode.episode,
+    airingAt: new Date(episode.airingAt).toISOString(),
+    type: episode.type,
+  }));
+
+  console.table(todayScheduleTable);
 
   for (const episode of todaySchedule) {
     const timeDelta = episode.airingAt - Date.now();
